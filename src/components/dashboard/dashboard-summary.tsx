@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CalendarClock,
+  PiggyBank,
   Scale,
   UsersRound,
   WalletCards,
@@ -31,9 +32,9 @@ type MetricConfig = {
 const metricsConfig: MetricConfig[] = [
   { key: "incomeCents", label: "Budget mensile", icon: ArrowDownToLine },
   { key: "recurringCents", label: "Spese ricorrenti", icon: ArrowUpFromLine },
-  { key: "availableCents", label: "Disponibile stimato", icon: WalletCards },
-  { key: "remainingThisMonthCents", label: "Manca nel mese", icon: CalendarClock },
-  { key: "sharedAccountTopUpCents", label: "Da caricare conto comune", icon: UsersRound },
+  { key: "availableCents", label: "Disponibile", icon: PiggyBank },
+  { key: "remainingThisMonthCents", label: "Da pagare", icon: CalendarClock },
+  { key: "sharedAccountTopUpCents", label: "Da caricare", icon: UsersRound },
 ];
 
 function percentage(value: number, total: number) {
@@ -58,7 +59,10 @@ export function DashboardSummary({
   currency: string;
 }) {
   const [mode, setMode] = useState<"personal" | "comparison">("personal");
-  const profileName = view === "mine" ? settings.profileNames.mine : settings.profileNames.partner;
+  const profileName =
+    view === "mine"
+      ? settings.profileNames.mine
+      : settings.profileNames.partner;
   const showComparison = view !== "common";
 
   const cards = useMemo(
@@ -125,7 +129,8 @@ export function DashboardSummary({
                 </p>
                 {comparison ? (
                   <p className="mt-1 text-xs text-slate-500">
-                    {percentage(value, total)} di {formatCurrency(total, currency)}
+                    {percentage(value, total)} di{" "}
+                    {formatCurrency(total, currency)}
                   </p>
                 ) : null}
               </div>

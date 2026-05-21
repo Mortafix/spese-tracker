@@ -34,7 +34,9 @@ function ChartTooltip({
 
   return (
     <div className="rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm shadow-xl">
-      <p className="font-medium text-slate-50">{item.payload?.name || item.name}</p>
+      <p className="font-medium text-slate-50">
+        {item.payload?.name || item.name}
+      </p>
       <p className="text-slate-300">{formatCurrency(item.value, currency)}</p>
     </div>
   );
@@ -44,7 +46,10 @@ function ChartLegend({ data }: { data: ChartDatum[] }) {
   return (
     <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
       {data.map((item) => (
-        <div key={item.name} className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div
+          key={item.name}
+          className="flex items-center gap-1.5 text-xs text-slate-400"
+        >
           <span
             className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: item.color }}
@@ -121,7 +126,9 @@ export function DashboardCharts({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-slate-50">
-              <SectionTitle icon={ChartColumnIncreasing}>Spese per categoria</SectionTitle>
+              <SectionTitle icon={ChartColumnIncreasing}>
+                Spese per categoria
+              </SectionTitle>
             </h2>
             <p className="text-sm text-slate-400">Impatto mensile ricorrente</p>
           </div>
@@ -198,9 +205,11 @@ export function DashboardCharts({
       <div className="min-h-80 rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-2xl shadow-black/20">
         <div className="mb-3">
           <h2 className="text-base font-semibold text-slate-50">
-            <SectionTitle icon={UsersRound}>Ripartizione persona</SectionTitle>
+            <SectionTitle icon={UsersRound}>Ripartizione spese</SectionTitle>
           </h2>
-          <p className="text-sm text-slate-400">Quote applicate alla vista corrente</p>
+          <p className="text-sm text-slate-400">
+            Quote applicate alla vista corrente
+          </p>
         </div>
         <div ref={pieRef} className="h-[220px] min-w-0">
           {pieWidth > 0 ? (

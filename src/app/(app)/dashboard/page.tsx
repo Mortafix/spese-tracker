@@ -21,7 +21,9 @@ function daysUntilLabel(days: number) {
   return `tra ${days} giorni`;
 }
 
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
   const params = await searchParams;
   const view = parseViewMode(params.view);
   const data = await getAppData();
@@ -34,7 +36,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <header>
         <p className="text-sm font-medium text-cyan-300">Dashboard</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-normal text-slate-50">
-          Spese fisse attive e passive
+          Riepilogo spese
         </h1>
       </header>
 
@@ -56,7 +58,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <Card>
           <CardHeader>
             <CardTitle>
-              <SectionTitle icon={CalendarClock}>Prossime scadenze</SectionTitle>
+              <SectionTitle icon={CalendarClock}>Prossime spese</SectionTitle>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -78,7 +80,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                         color={payment.categoryColor}
                         icon={payment.categoryIcon}
                       />
-                      <OwnerChip owner={payment.owner} settings={data.settings} />
+                      <OwnerChip
+                        owner={payment.owner}
+                        settings={data.settings}
+                      />
                     </div>
                   </div>
                   <div className="text-right">
@@ -87,7 +92,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     </p>
                     {payment.originalAmountCents !== payment.amountCents ? (
                       <p className="mt-1 text-xs font-medium text-slate-500">
-                        totale {formatCurrency(payment.originalAmountCents, currency)}
+                        totale{" "}
+                        {formatCurrency(payment.originalAmountCents, currency)}
                       </p>
                     ) : null}
                     <p className="mt-1 text-xs font-medium text-slate-400">
@@ -103,15 +109,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <Card>
           <CardHeader>
             <CardTitle>
-              <SectionTitle icon={Landmark}>Progress mutui e finanziamenti</SectionTitle>
+              <SectionTitle icon={Landmark}>Mutui e finanziamenti</SectionTitle>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {metrics.loanProgress.length === 0 ? (
-              <p className="text-sm text-slate-400">Nessun finanziamento attivo.</p>
+              <p className="text-sm text-slate-400">
+                Nessun finanziamento attivo.
+              </p>
             ) : (
               metrics.loanProgress.map((loan) => (
-                <div key={loan.id} className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div
+                  key={loan.id}
+                  className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-slate-50">{loan.name}</p>
@@ -126,7 +137,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   </div>
                   <Progress value={loan.progressPercent} />
                   <p className="text-xs text-slate-400">
-                    Fine stimata {formatDate(loan.estimatedEndDate)}, {loan.remainingInstallments} rate residue.
+                    Fine stimata {formatDate(loan.estimatedEndDate)},{" "}
+                    {loan.remainingInstallments} rate residue.
                   </p>
                 </div>
               ))
