@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Spese Tracker
 
-## Getting Started
+Web app privata per tracciare spese ricorrenti, entrate mensili e mutui/finanziamenti di coppia.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router + TypeScript
+- MongoDB con driver ufficiale
+- Tailwind CSS + componenti stile shadcn/ui
+- Recharts per grafici
+- Session cookie HTTP-only firmato con `jose`
+
+## Setup locale
+
+```bash
+npm install
+cp .env.example .env.local
+npm run hash-password -- "scegli-una-password"
+```
+
+Compila `.env.local`:
+
+```bash
+MONGODB_URI=mongodb://...
+MONGODB_DB=spese_tracker
+APP_USERNAME=admin
+APP_PASSWORD_HASH=<riga-escapata-stampata-dallo-script>
+SESSION_SECRET=<stringa-lunga-random>
+```
+
+Avvia:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apri `http://localhost:3000`. Senza `MONGODB_URI`, l'app mostra dati demo in sola lettura; in locale senza `APP_PASSWORD_HASH` puoi entrare con `admin / password`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Quando modifichi `.env.local`, riavvia il processo Next. In produzione rifai anche la build prima di ripartire:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+PORT=3000 npm run start
+```
 
-## Learn More
+## Deploy self-hosted
 
-To learn more about Next.js, take a look at the following resources:
+Usa una versione Node.js LTS compatibile con Next.js 16, poi installa da lockfile:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm ci
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+In produzione queste variabili sono obbligatorie e l'app fallisce con errore esplicito se mancano:
 
-## Deploy on Vercel
+```bash
+MONGODB_URI=mongodb://...
+MONGODB_DB=spese_tracker
+APP_USERNAME=admin
+APP_PASSWORD_HASH=<hash bcrypt generato con npm run hash-password>
+SESSION_SECRET=<stringa-lunga-random>
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Avvia dietro un reverse proxy HTTPS, ad esempio Nginx, Caddy o Traefik. Il proxy deve inoltrare almeno `Host`, `X-Forwarded-For` e `X-Forwarded-Proto`; applica HSTS, limite dimensione body e rate limit su `POST /login`. L'app include anche un limite in memoria sui tentativi di login per IP e username, pensato per un singolo processo Node.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Checklist rapida:
+
+```bash
+npm run lint
+npm test
+npm run build
+npm audit --audit-level=moderate
+PORT=3000 npm run start
+```
+
+Configura backup periodici di MongoDB prima del primo deploy e prima di aggiornamenti applicativi.
+
+## Funzionalita
+
+- Login unico condiviso.
+- Dashboard dark con budget mensile, spese ricorrenti, residuo stimato, conto comune e grafici.
+- Viste `Io`, `Lei`, `Comune` con ratio configurabile per voci condivise.
+- CRUD per entrate, spese ricorrenti, categorie e mutui/finanziamenti.
+- Cadenze spese: settimanale, mensile, bimestrale, trimestrale, quadrimestrale, semestrale, annuale.
+- Le nuove spese usano `firstDueDate` per calcolare prossima scadenza e residuo mese.
+- Progress automatico delle rate pagate sui finanziamenti.
+
+## Comandi
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+## Deploy Vercel
+
+Configura le stesse variabili ambiente in Vercel e assicurati che il server MongoDB accetti connessioni dalla piattaforma di deploy.
