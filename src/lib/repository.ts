@@ -11,6 +11,7 @@ import type {
   Investment,
   InvestmentTracking,
   Loan,
+  OneTimePayment,
 } from "@/types/domain";
 
 type WithMongoId<T> = Omit<T, "id"> & { _id: ObjectId | string };
@@ -24,6 +25,7 @@ const COLLECTIONS = {
   investments: "investments",
   investmentTrackings: "investmentTrackings",
   cashBalances: "cashBalances",
+  oneTimePayments: "oneTimePayments",
 } as const;
 
 const CATEGORY_NAME_COLLATION = { locale: "it", strength: 2 } as const;
@@ -180,6 +182,9 @@ async function ensureDefaults(db: Db) {
       .collection(COLLECTIONS.investmentTrackings)
       .createIndex({ investmentId: 1, trackedAt: 1 }),
     db.collection(COLLECTIONS.cashBalances).createIndex({ owner: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.oneTimePayments).createIndex({ date: -1 }),
+    db.collection(COLLECTIONS.oneTimePayments).createIndex({ categoryId: 1 }),
+    db.collection(COLLECTIONS.oneTimePayments).createIndex({ direction: 1 }),
   ]);
 
   const categoryCount = await categories.countDocuments();
@@ -206,6 +211,7 @@ export async function getAppData(): Promise<AppData> {
     investments,
     investmentTrackings,
     cashBalances,
+    oneTimePayments,
   ] = await Promise.all([
     db.collection<AppSettings>(COLLECTIONS.settings).findOne({ id: "default" }),
     db
@@ -243,6 +249,11 @@ export async function getAppData(): Promise<AppData> {
       .find({})
       .sort({ owner: 1 })
       .toArray(),
+    db
+      .collection<WithMongoId<OneTimePayment>>(COLLECTIONS.oneTimePayments)
+      .find({})
+      .sort({ date: -1, createdAt: -1 })
+      .toArray(),
   ]);
 
   return {
@@ -254,6 +265,7 @@ export async function getAppData(): Promise<AppData> {
     investments: investments.map(mapMongoDoc) as Investment[],
     investmentTrackings: investmentTrackings.map(mapMongoDoc) as InvestmentTracking[],
     cashBalances: cashBalances.map(mapMongoDoc) as CashBalance[],
+    oneTimePayments: oneTimePayments.map(mapMongoDoc) as OneTimePayment[],
   };
 }
 
@@ -491,4 +503,37 @@ export async function upsertCashBalance(
     },
     { upsert: true },
   );
+}
+
+export async function createOneTimePayment(
+  oneTimePayment: Omit<OneTimePayment, "id" | "createdAt" | "updatedAt">,
+) {
+  const db = await getWritableDb();
+  const timestamp = nowIso();
+  await db.collection(COLLECTIONS.oneTimePayments).insertOne({
+    ...oneTimePayment,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+export async function updateOneTimePayment(
+  id: string,
+  oneTimePayment: Omit<OneTimePayment, "id" | "createdAt" | "updatedAt">,
+) {
+  const db = await getWritableDb();
+  await db.collection(COLLECTIONS.oneTimePayments).updateOne(
+    { _id: objectId(id) },
+    {
+      $set: {
+        ...oneTimePayment,
+        updatedAt: nowIso(),
+      },
+    },
+  );
+}
+
+export async function deleteOneTimePayment(id: string) {
+  const db = await getWritableDb();
+  await db.collection(COLLECTIONS.oneTimePayments).deleteOne({ _id: objectId(id) });
 }

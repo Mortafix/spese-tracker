@@ -2,19 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   computeDashboardMetrics,
   computeInvestmentPortfolioMetrics,
+  computeOneTimePaymentMetrics,
   estimatedLoanEndDate,
   expenseMonthlyImpact,
   expenseMonthlyTotalCents,
   expenseMatchesCategoryFilter,
+  filterOneTimePaymentsByPeriod,
   investmentCurrentValueCents,
   investmentGainLossCents,
   investmentNetContributedCents,
   investmentReturnPercent,
   loanIsCompleted,
   nextExpenseDueDate,
+  oneTimePaymentAvailableYears,
   ownerMatchesExpenseView,
   ownerMatchesInvestmentView,
   paidInstallments,
+  parseOneTimePaymentPeriod,
+  parseOneTimePaymentYear,
   remainingExpenseThisMonth,
 } from "@/lib/calculations";
 import {
@@ -201,6 +206,56 @@ const data: AppData = {
       balanceCents: 50000,
       asOfDate: "2026-05-01",
       updatedAt: "2026-05-01T00:00:00.000Z",
+    },
+  ],
+  oneTimePayments: [
+    {
+      id: "one-time-1",
+      direction: "income",
+      type: "single",
+      categoryId: "category-1",
+      name: "Tredicesima",
+      date: "2026-12-15",
+      amountCents: 180000,
+      isCash: false,
+      createdAt: "2026-12-15T00:00:00.000Z",
+      updatedAt: "2026-12-15T00:00:00.000Z",
+    },
+    {
+      id: "one-time-2",
+      direction: "expense",
+      type: "deposit",
+      categoryId: "category-1",
+      name: "Acconto",
+      date: "2026-05-10",
+      amountCents: 50000,
+      isCash: true,
+      createdAt: "2026-05-10T00:00:00.000Z",
+      updatedAt: "2026-05-10T00:00:00.000Z",
+    },
+    {
+      id: "one-time-3",
+      direction: "expense",
+      type: "balance",
+      categoryId: "category-1",
+      name: "Saldo",
+      date: "2026-06-02",
+      amountCents: 75000,
+      isCash: false,
+      createdAt: "2026-06-02T00:00:00.000Z",
+      updatedAt: "2026-06-02T00:00:00.000Z",
+    },
+    {
+      id: "one-time-4",
+      direction: "income",
+      type: "single",
+      categoryId: "category-1",
+      name: "Rimborso",
+      date: "2025-05-20",
+      amountCents: 20000,
+      isCash: true,
+      createdAt: "2025-05-20T00:00:00.000Z",
+      updatedAt: "2025-05-20T00:00:00.000Z",
     },
   ],
 };
@@ -411,6 +466,40 @@ describe("investment calculations", () => {
     expect(ownerMatchesInvestmentView("mine", "mine")).toBe(true);
     expect(ownerMatchesInvestmentView("shared", "mine")).toBe(false);
     expect(ownerMatchesInvestmentView("partner", "partner")).toBe(true);
+  });
+});
+
+describe("one-time payment calculations", () => {
+  it("parses available years and falls back to the newest year", () => {
+    expect(oneTimePaymentAvailableYears(data.oneTimePayments, baseDate)).toEqual([2026, 2025]);
+    expect(parseOneTimePaymentYear("2025", data.oneTimePayments, baseDate)).toBe(2025);
+    expect(parseOneTimePaymentYear("2030", data.oneTimePayments, baseDate)).toBe(2026);
+    expect(parseOneTimePaymentPeriod("all")).toBe("all");
+    expect(parseOneTimePaymentPeriod("q2")).toBe("q2");
+    expect(parseOneTimePaymentPeriod("q4")).toBe("q4");
+    expect(parseOneTimePaymentPeriod("unknown")).toBe("all");
+  });
+
+  it("filters payments by year and quarter", () => {
+    expect(
+      filterOneTimePaymentsByPeriod(data.oneTimePayments, 2026, "q2").map((payment) => payment.id),
+    ).toEqual(["one-time-3", "one-time-2"]);
+    expect(
+      filterOneTimePaymentsByPeriod(data.oneTimePayments, 2026, "q4").map((payment) => payment.id),
+    ).toEqual(["one-time-1"]);
+  });
+
+  it("aggregates income, expenses, cash and monthly trend independently", () => {
+    const metrics = computeOneTimePaymentMetrics(data, 2026, "q2");
+
+    expect(metrics.incomeCents).toBe(0);
+    expect(metrics.expenseCents).toBe(125000);
+    expect(metrics.netCents).toBe(-125000);
+    expect(metrics.cashCents).toBe(50000);
+    expect(metrics.count).toBe(2);
+    expect(metrics.categoryTotals).toEqual([{ name: "Casa", value: 125000, color: "#2563eb" }]);
+    expect(metrics.monthlyTrend.find((item) => item.month === "05")?.expenseCents).toBe(50000);
+    expect(metrics.monthlyTrend.find((item) => item.month === "12")?.incomeCents).toBe(180000);
   });
 });
 

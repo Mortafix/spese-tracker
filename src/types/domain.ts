@@ -105,6 +105,24 @@ export type CashBalance = {
   updatedAt: string;
 };
 
+export type OneTimePaymentDirection = "expense" | "income";
+
+export type OneTimePaymentType = "deposit" | "installment" | "balance" | "single";
+
+export type OneTimePayment = {
+  id: string;
+  direction: OneTimePaymentDirection;
+  type: OneTimePaymentType;
+  categoryId: string;
+  name: string;
+  date: string;
+  amountCents: number;
+  isCash: boolean;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AppData = {
   settings: AppSettings;
   categories: Category[];
@@ -114,6 +132,7 @@ export type AppData = {
   investments: Investment[];
   investmentTrackings: InvestmentTracking[];
   cashBalances: CashBalance[];
+  oneTimePayments: OneTimePayment[];
 };
 
 export type UpcomingPayment = {
@@ -204,4 +223,22 @@ export type InvestmentPortfolioMetrics = {
   performanceTotalsCurrentYear: ChartDatum[];
   trend: InvestmentTrendSeries[];
   trendCurrentYear: InvestmentTrendSeries[];
+};
+
+export type OneTimePaymentMonthlyDatum = {
+  month: string;
+  incomeCents: number;
+  expenseCents: number;
+  netCents: number;
+};
+
+export type OneTimePaymentMetrics = {
+  incomeCents: number;
+  expenseCents: number;
+  netCents: number;
+  cashCents: number;
+  count: number;
+  categoryTotals: ChartDatum[];
+  directionTotals: ChartDatum[];
+  monthlyTrend: OneTimePaymentMonthlyDatum[];
 };

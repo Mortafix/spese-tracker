@@ -12,6 +12,11 @@ import type {
   InvestmentTrendPoint,
   InvestmentTrendSeries,
   Loan,
+  OneTimePayment,
+  OneTimePaymentDirection,
+  OneTimePaymentMetrics,
+  OneTimePaymentMonthlyDatum,
+  OneTimePaymentType,
   Owner,
   Recurrence,
   UpcomingPayment,
@@ -36,6 +41,36 @@ export const recurrenceOptions: Array<{ value: Recurrence; label: string }> = [
   { value: "semiannual", label: "Semestrale" },
   { value: "annual", label: "Annuale" },
 ];
+
+export const oneTimePaymentDirectionOptions: Array<{
+  value: OneTimePaymentDirection;
+  label: string;
+}> = [
+  { value: "expense", label: "Uscita" },
+  { value: "income", label: "Entrata" },
+];
+
+export const oneTimePaymentTypeOptions: Array<{
+  value: OneTimePaymentType;
+  label: string;
+}> = [
+  { value: "deposit", label: "Acconto" },
+  { value: "installment", label: "Rata" },
+  { value: "balance", label: "Saldo" },
+  { value: "single", label: "Unico" },
+];
+
+export const oneTimePaymentPeriodOptions = [
+  { value: "all", label: "Anno" },
+  { value: "q1", label: "Q1" },
+  { value: "q2", label: "Q2" },
+  { value: "q3", label: "Q3" },
+  { value: "q4", label: "Q4" },
+] as const;
+
+export type OneTimePaymentPeriod = (typeof oneTimePaymentPeriodOptions)[number]["value"];
+
+export const ONE_TIME_PAYMENT_MIN_YEAR = 2025;
 
 const recurrenceMonthIntervals: Partial<Record<Recurrence, number>> = {
   monthly: 1,
@@ -92,6 +127,27 @@ export function recurrencePeriodLabel(recurrence: Recurrence) {
   if (recurrence === "fourMonthly") return "4 mesi";
   if (recurrence === "semiannual") return "semestre";
   return "anno";
+}
+
+export function oneTimePaymentDirectionLabel(direction: OneTimePaymentDirection) {
+  return (
+    oneTimePaymentDirectionOptions.find((option) => option.value === direction)?.label ||
+    "Uscita"
+  );
+}
+
+export function oneTimePaymentTypeLabel(type: OneTimePaymentType) {
+  return oneTimePaymentTypeOptions.find((option) => option.value === type)?.label || "Unico";
+}
+
+export function parseOneTimePaymentPeriod(value?: string | string[]): OneTimePaymentPeriod {
+  const raw = Array.isArray(value) ? value[0] : value;
+
+  if (oneTimePaymentPeriodOptions.some((option) => option.value === raw)) {
+    return raw as OneTimePaymentPeriod;
+  }
+
+  return "all";
 }
 
 export function ownerLabel(owner: Owner, settings: AppSettings) {
@@ -921,5 +977,160 @@ export function computeInvestmentPortfolioMetrics(
       data.investmentTrackings,
       { startDate: currentYearStart, endDate: todayDate },
     ),
+  };
+}
+
+function oneTimePaymentYear(payment: OneTimePayment) {
+  return Number(payment.date.slice(0, 4));
+}
+
+function oneTimePaymentMonth(payment: OneTimePayment) {
+  return Number(payment.date.slice(5, 7));
+}
+
+function isValidDateOnlyString(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function monthsForOneTimePaymentPeriod(period: OneTimePaymentPeriod) {
+  if (period === "all") {
+    return null;
+  }
+
+  if (period === "q1") return [1, 2, 3];
+  if (period === "q2") return [4, 5, 6];
+  if (period === "q3") return [7, 8, 9];
+  return [10, 11, 12];
+}
+
+export function oneTimePaymentAvailableYears(
+  payments: OneTimePayment[],
+  today = new Date(),
+) {
+  const currentYear = dateInAppTimeZone(today).getFullYear();
+  let maxYear = currentYear;
+
+  payments.forEach((payment) => {
+    if (isValidDateOnlyString(payment.date)) {
+      maxYear = Math.max(maxYear, oneTimePaymentYear(payment));
+    }
+  });
+
+  const years: number[] = [];
+
+  for (let year = maxYear; year >= ONE_TIME_PAYMENT_MIN_YEAR; year -= 1) {
+    years.push(year);
+  }
+
+  return years;
+}
+
+export function parseOneTimePaymentYear(
+  value: string | string[] | undefined,
+  payments: OneTimePayment[],
+  today = new Date(),
+) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  const years = oneTimePaymentAvailableYears(payments, today);
+
+  if (Number.isInteger(parsed) && years.includes(parsed)) {
+    return parsed;
+  }
+
+  return years[0] ?? dateInAppTimeZone(today).getFullYear();
+}
+
+export function oneTimePaymentMatchesPeriod(
+  payment: OneTimePayment,
+  year: number,
+  period: OneTimePaymentPeriod,
+) {
+  if (!isValidDateOnlyString(payment.date) || oneTimePaymentYear(payment) !== year) {
+    return false;
+  }
+
+  const months = monthsForOneTimePaymentPeriod(period);
+  return months ? months.includes(oneTimePaymentMonth(payment)) : true;
+}
+
+export function filterOneTimePaymentsByPeriod(
+  payments: OneTimePayment[],
+  year: number,
+  period: OneTimePaymentPeriod,
+) {
+  return payments
+    .filter((payment) => oneTimePaymentMatchesPeriod(payment, year, period))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
+export function computeOneTimePaymentMetrics(
+  data: AppData,
+  year: number,
+  period: OneTimePaymentPeriod,
+): OneTimePaymentMetrics {
+  const periodPayments = filterOneTimePaymentsByPeriod(data.oneTimePayments, year, period);
+  const yearPayments = filterOneTimePaymentsByPeriod(data.oneTimePayments, year, "all");
+  const categoryMap = new Map<string, ChartDatum>();
+  const monthlyMap = new Map<number, OneTimePaymentMonthlyDatum>();
+
+  for (let month = 1; month <= 12; month += 1) {
+    monthlyMap.set(month, {
+      month: String(month).padStart(2, "0"),
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+    });
+  }
+
+  const incomeCents = periodPayments
+    .filter((payment) => payment.direction === "income")
+    .reduce((sum, payment) => sum + payment.amountCents, 0);
+  const expenseCents = periodPayments
+    .filter((payment) => payment.direction === "expense")
+    .reduce((sum, payment) => sum + payment.amountCents, 0);
+  const cashCents = periodPayments
+    .filter((payment) => payment.isCash)
+    .reduce((sum, payment) => sum + payment.amountCents, 0);
+
+  periodPayments.forEach((payment) => {
+    const category = data.categories.find((item) => item.id === payment.categoryId);
+    pushChartValue(
+      categoryMap,
+      category?.name || "Senza categoria",
+      payment.amountCents,
+      category?.color || "#64748b",
+    );
+  });
+
+  yearPayments.forEach((payment) => {
+    const month = oneTimePaymentMonth(payment);
+    const row = monthlyMap.get(month);
+
+    if (!row) {
+      return;
+    }
+
+    if (payment.direction === "income") {
+      row.incomeCents += payment.amountCents;
+      row.netCents += payment.amountCents;
+    } else {
+      row.expenseCents += payment.amountCents;
+      row.netCents -= payment.amountCents;
+    }
+  });
+
+  return {
+    incomeCents,
+    expenseCents,
+    netCents: incomeCents - expenseCents,
+    cashCents,
+    count: periodPayments.length,
+    categoryTotals: [...categoryMap.values()].sort((a, b) => b.value - a.value),
+    directionTotals: [
+      { name: "Entrate", value: incomeCents, color: "#34d399" },
+      { name: "Uscite", value: expenseCents, color: "#fb7185" },
+    ].filter((item) => item.value > 0),
+    monthlyTrend: [...monthlyMap.values()],
   };
 }

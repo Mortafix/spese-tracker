@@ -11,6 +11,7 @@ import {
   Landmark,
   LogOut,
   Menu,
+  ReceiptText,
   Settings,
   TrendingUp,
   X,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/loans", label: "Mutui", icon: Landmark },
   { href: "/incomes", label: "Entrate", icon: Banknote },
   { href: "/investments", label: "Investimenti", icon: TrendingUp },
+  { href: "/one-time-payments", label: "Extra", icon: ReceiptText },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
 

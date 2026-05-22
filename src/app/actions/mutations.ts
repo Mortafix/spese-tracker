@@ -12,18 +12,21 @@ import {
   createInvestment,
   createInvestmentTracking,
   createLoan,
+  createOneTimePayment,
   deleteCategory,
   deleteExpense,
   deleteIncome,
   deleteInvestment,
   deleteInvestmentTracking,
   deleteLoan,
+  deleteOneTimePayment,
   updateCategory,
   updateExpense,
   updateIncome,
   updateInvestment,
   updateInvestmentTracking,
   updateLoan,
+  updateOneTimePayment,
   updateSettings,
   upsertCashBalance,
 } from "@/lib/repository";
@@ -39,6 +42,8 @@ const recurrenceSchema = z.enum([
   "semiannual",
   "annual",
 ]);
+const oneTimePaymentDirectionSchema = z.enum(["expense", "income"]);
+const oneTimePaymentTypeSchema = z.enum(["deposit", "installment", "balance", "single"]);
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -359,5 +364,47 @@ export async function upsertCashBalanceAction(formData: FormData) {
   });
 
   await upsertCashBalance(parsed);
+  revalidateApp();
+}
+
+const oneTimePaymentSchema = z.object({
+  direction: oneTimePaymentDirectionSchema,
+  type: oneTimePaymentTypeSchema,
+  categoryId: z.string().min(1),
+  name: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amountCents: z.number().int().min(0),
+  isCash: z.boolean(),
+  note: z.string().optional(),
+});
+
+function parseOneTimePayment(formData: FormData) {
+  return oneTimePaymentSchema.parse({
+    direction: oneTimePaymentDirectionSchema.parse(formData.get("direction")),
+    type: oneTimePaymentTypeSchema.parse(formData.get("type")),
+    categoryId: text(formData, "categoryId"),
+    name: text(formData, "name"),
+    date: text(formData, "date"),
+    amountCents: moneyValue(formData, "amount"),
+    isCash: checkbox(formData, "isCash"),
+    note: optionalText(formData, "note"),
+  });
+}
+
+export async function createOneTimePaymentAction(formData: FormData) {
+  await requireSession();
+  await createOneTimePayment(parseOneTimePayment(formData));
+  revalidateApp();
+}
+
+export async function updateOneTimePaymentAction(formData: FormData) {
+  await requireSession();
+  await updateOneTimePayment(parseId(formData), parseOneTimePayment(formData));
+  revalidateApp();
+}
+
+export async function deleteOneTimePaymentAction(formData: FormData) {
+  await requireSession();
+  await deleteOneTimePayment(parseId(formData));
   revalidateApp();
 }
