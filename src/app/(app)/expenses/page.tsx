@@ -29,6 +29,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   expenseMonthlyImpact,
+  expenseMonthlyTotalCents,
   expenseMatchesCategoryFilter,
   nextExpenseDueDate,
   ownerMatchesExpenseView,
@@ -38,6 +39,7 @@ import {
 import { formatDate } from "@/lib/dates";
 import { centsToInputValue, formatCurrency } from "@/lib/money";
 import { getAppData } from "@/lib/repository";
+import type { AppSettings, ViewMode } from "@/types/domain";
 
 type ExpensesPageProps = {
   searchParams: Promise<{
@@ -65,19 +67,31 @@ function CategorySelect({
   );
 }
 
+function viewModeLabel(view: ViewMode, settings: AppSettings) {
+  if (view === "mine") return settings.profileNames.mine;
+  if (view === "partner") return settings.profileNames.partner;
+  return "Comune";
+}
+
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
   const view = parseViewMode(params.view);
   const data = await getAppData();
   const currency = data.settings.currency;
-  const selectedCategoryId = data.categories.some((category) => category.id === params.category)
-    ? params.category
-    : undefined;
+  const selectedCategory = data.categories.find((category) => category.id === params.category);
+  const selectedCategoryId = selectedCategory?.id;
   const showDetails = params.details === "1";
   const visibleExpenses = data.expenses
     .filter((expense) => ownerMatchesExpenseView(expense.owner, view))
     .filter((expense) => expenseMatchesCategoryFilter(expense, selectedCategoryId))
     .sort((a, b) => expenseMonthlyImpact(b) - expenseMonthlyImpact(a));
+  const activeVisibleExpenseCount = visibleExpenses.filter((expense) => expense.active).length;
+  const monthlyTotalCents = expenseMonthlyTotalCents(
+    data.expenses,
+    view,
+    data.settings,
+    selectedCategoryId,
+  );
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">
@@ -142,6 +156,19 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </CardHeader>
         <CardContent className="space-y-3">
           <ExpenseListControls categories={data.categories} />
+          <div className="grid gap-3 rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-cyan-100">Totale mensile attivo</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Vista {viewModeLabel(view, data.settings)} ·{" "}
+                {selectedCategory ? selectedCategory.name : "Tutte le categorie"} ·{" "}
+                {activeVisibleExpenseCount} spese attive
+              </p>
+            </div>
+            <p className="text-2xl font-semibold tracking-normal text-slate-50">
+              {formatCurrency(monthlyTotalCents, currency)}
+            </p>
+          </div>
           {visibleExpenses.length === 0 ? (
             <p className="text-sm text-slate-400">Nessuna spesa per questa vista.</p>
           ) : (

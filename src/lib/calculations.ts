@@ -151,6 +151,23 @@ export function expenseMonthlyImpact(expense: Expense) {
   return Math.round(expense.amountCents / interval);
 }
 
+export function expenseMonthlyTotalCents(
+  expenses: Expense[],
+  view: ViewMode,
+  settings: AppSettings,
+  categoryId?: string | string[],
+) {
+  return expenses
+    .filter((expense) => expense.active)
+    .filter((expense) => ownerMatchesExpenseView(expense.owner, view))
+    .filter((expense) => expenseMatchesCategoryFilter(expense, categoryId))
+    .reduce(
+      (sum, expense) =>
+        sum + applySplit(expenseMonthlyImpact(expense), expense.owner, view, settings),
+      0,
+    );
+}
+
 function toDateOnly(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -653,14 +670,10 @@ export function investmentReturnPercent(
 
 export function ownerMatchesInvestmentView(owner: Owner, view: ViewMode) {
   if (view === "common") {
-    return true;
+    return owner === "shared";
   }
 
-  if (view === "mine") {
-    return owner === "mine" || owner === "shared";
-  }
-
-  return owner === "partner" || owner === "shared";
+  return owner === view;
 }
 
 function emptyCashBalance(owner: Owner): CashBalance {
@@ -680,17 +693,11 @@ export function cashBalanceForOwner(data: AppData, owner: Owner) {
 function buildInvestmentPosition(
   investment: Investment,
   trackings: InvestmentTracking[],
-  view: ViewMode,
-  settings: AppSettings,
 ): InvestmentPosition {
   const sortedTrackings = sortInvestmentTrackings(trackings);
-  const factor = splitFactor(investment.owner, view, settings);
   const originalCurrentValue = investmentCurrentValueCents(investment, sortedTrackings);
   const originalNetContributed = investmentNetContributedCents(investment, sortedTrackings);
   const originalGainLoss = originalCurrentValue - originalNetContributed;
-  const currentValue = Math.round(originalCurrentValue * factor);
-  const netContributed = Math.round(originalNetContributed * factor);
-  const gainLoss = currentValue - netContributed;
 
   return {
     id: investment.id,
@@ -700,10 +707,13 @@ function buildInvestmentPosition(
     startDate: investment.startDate,
     lastTrackedAt: sortedTrackings.at(-1)?.trackedAt,
     trackingCount: sortedTrackings.length,
-    currentValueCents: currentValue,
-    netContributedCents: netContributed,
-    gainLossCents: gainLoss,
-    returnPercent: netContributed > 0 ? (gainLoss / netContributed) * 100 : null,
+    currentValueCents: originalCurrentValue,
+    netContributedCents: originalNetContributed,
+    gainLossCents: originalGainLoss,
+    returnPercent:
+      originalNetContributed > 0
+        ? (originalGainLoss / originalNetContributed) * 100
+        : null,
     originalCurrentValueCents: originalCurrentValue,
     originalNetContributedCents: originalNetContributed,
     originalGainLossCents: originalGainLoss,
@@ -717,23 +727,20 @@ function pushInvestmentValuePoint(points: Map<string, number>, date: string, val
 function investmentValuePoints(
   investment: Investment,
   trackings: InvestmentTracking[],
-  view: ViewMode,
-  settings: AppSettings,
 ) {
-  const factor = splitFactor(investment.owner, view, settings);
   const points = new Map<string, number>();
 
   pushInvestmentValuePoint(
     points,
     investment.startDate,
-    Math.round(investment.initialAmountCents * factor),
+    investment.initialAmountCents,
   );
 
   investmentTrackingsFor(investment, trackings).forEach((tracking) => {
     pushInvestmentValuePoint(
       points,
       tracking.trackedAt,
-      Math.round(tracking.currentValueCents * factor),
+      tracking.currentValueCents,
     );
   });
 
@@ -756,13 +763,11 @@ function latestInvestmentValueBefore(points: InvestmentTrendPoint[], date: strin
 function buildInvestmentTrendSeries(
   investments: Investment[],
   trackings: InvestmentTracking[],
-  view: ViewMode,
-  settings: AppSettings,
   options: { startDate?: string; endDate?: string } = {},
 ) {
   return investments
     .map((investment, index) => {
-      const allPoints = investmentValuePoints(investment, trackings, view, settings);
+      const allPoints = investmentValuePoints(investment, trackings);
       let points = allPoints;
 
       if (options.startDate || options.endDate) {
@@ -809,8 +814,6 @@ function buildInvestmentTrendSeries(
 function investmentPeriodGainLossCents(
   investment: Investment,
   trackings: InvestmentTracking[],
-  view: ViewMode,
-  settings: AppSettings,
   startDate: string,
   endDate: string,
 ) {
@@ -818,19 +821,15 @@ function investmentPeriodGainLossCents(
     return 0;
   }
 
-  const factor = splitFactor(investment.owner, view, settings);
-  const points = investmentValuePoints(investment, trackings, view, settings);
+  const points = investmentValuePoints(investment, trackings);
   const startValue =
     investment.startDate >= startDate
-      ? Math.round(investment.initialAmountCents * factor)
+      ? investment.initialAmountCents
       : latestInvestmentValueBefore(points, startDate);
   const endValue = latestInvestmentValueAtOrBefore(points, endDate);
   const movementCents = investmentTrackingsFor(investment, trackings)
     .filter((tracking) => tracking.trackedAt >= startDate && tracking.trackedAt <= endDate)
-    .reduce(
-      (sum, tracking) => sum + Math.round(tracking.movementCents * factor),
-      0,
-    );
+    .reduce((sum, tracking) => sum + tracking.movementCents, 0);
 
   return endValue - startValue - movementCents;
 }
@@ -851,8 +850,6 @@ export function computeInvestmentPortfolioMetrics(
     buildInvestmentPosition(
       investment,
       investmentTrackingsFor(investment, data.investmentTrackings),
-      view,
-      data.settings,
     ),
   );
   const cashCents = data.cashBalances.reduce((sum, cashBalance) => {
@@ -860,10 +857,7 @@ export function computeInvestmentPortfolioMetrics(
       return sum;
     }
 
-    return (
-      sum +
-      applySplit(cashBalance.balanceCents, cashBalance.owner, view, data.settings)
-    );
+    return sum + cashBalance.balanceCents;
   }, 0);
   const investmentValueCents = positions.reduce(
     (sum, position) => sum + position.currentValueCents,
@@ -895,8 +889,6 @@ export function computeInvestmentPortfolioMetrics(
     const value = investmentPeriodGainLossCents(
       investment,
       data.investmentTrackings,
-      view,
-      data.settings,
       currentYearStart,
       todayDate,
     );
@@ -923,14 +915,10 @@ export function computeInvestmentPortfolioMetrics(
     trend: buildInvestmentTrendSeries(
       activeInvestments,
       data.investmentTrackings,
-      view,
-      data.settings,
     ),
     trendCurrentYear: buildInvestmentTrendSeries(
       activeInvestments,
       data.investmentTrackings,
-      view,
-      data.settings,
       { startDate: currentYearStart, endDate: todayDate },
     ),
   };

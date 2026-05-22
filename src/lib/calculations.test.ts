@@ -4,6 +4,7 @@ import {
   computeInvestmentPortfolioMetrics,
   estimatedLoanEndDate,
   expenseMonthlyImpact,
+  expenseMonthlyTotalCents,
   expenseMatchesCategoryFilter,
   investmentCurrentValueCents,
   investmentGainLossCents,
@@ -12,6 +13,7 @@ import {
   loanIsCompleted,
   nextExpenseDueDate,
   ownerMatchesExpenseView,
+  ownerMatchesInvestmentView,
   paidInstallments,
   remainingExpenseThisMonth,
 } from "@/lib/calculations";
@@ -238,6 +240,26 @@ describe("recurring expense calculations", () => {
       nextExpenseDueDate(legacyMonthlyExpense, baseDate).toISOString().slice(0, 10),
     ).toBe("2026-05-20");
   });
+
+  it("sums active monthly totals for the current view and category", () => {
+    const inactiveExpense = makeExpense("monthly", 90000, "2026-05-20", {
+      id: "inactive-expense",
+      active: false,
+    });
+    const partnerExpense = makeExpense("monthly", 70000, "2026-05-20", {
+      id: "partner-expense",
+      owner: "partner",
+      categoryId: "category-2",
+    });
+    const expenses = [monthlyExpense, weeklyExpense, inactiveExpense, partnerExpense];
+
+    expect(expenseMonthlyTotalCents(expenses, "mine", data.settings)).toBe(80000);
+    expect(expenseMonthlyTotalCents(expenses, "common", data.settings)).toBe(100000);
+    expect(expenseMonthlyTotalCents(expenses, "partner", data.settings, "category-2")).toBe(
+      70000,
+    );
+    expect(expenseMonthlyTotalCents(expenses, "mine", data.settings, "category-2")).toBe(0);
+  });
 });
 
 describe("loan calculations", () => {
@@ -328,47 +350,67 @@ describe("investment calculations", () => {
         investments: [investment, inactiveInvestment],
         investmentTrackings,
       },
-      "common",
+      "mine",
     );
 
     expect(metrics.investmentValueCents).toBe(150000);
     expect(metrics.positions.map((position) => position.id)).not.toContain(inactiveInvestment.id);
   });
 
-  it("applies owner split to investments and cash balances", () => {
+  it("uses full values only for the selected personal owner", () => {
     const mineMetrics = computeInvestmentPortfolioMetrics(data, "mine");
 
-    expect(mineMetrics.investmentValueCents).toBe(348000);
-    expect(mineMetrics.cashCents).toBe(40000);
-    expect(mineMetrics.totalValueCents).toBe(388000);
+    expect(mineMetrics.investmentValueCents).toBe(150000);
+    expect(mineMetrics.cashCents).toBe(10000);
+    expect(mineMetrics.totalValueCents).toBe(160000);
+    expect(mineMetrics.positions.map((position) => position.name)).toEqual(["ETF"]);
   });
 
-  it("uses full portfolio totals in common view", () => {
+  it("uses only shared investments and cash in common view", () => {
     const commonMetrics = computeInvestmentPortfolioMetrics(data, "common");
 
-    expect(commonMetrics.investmentValueCents).toBe(480000);
-    expect(commonMetrics.cashCents).toBe(60000);
-    expect(commonMetrics.gainLossCents).toBe(50000);
+    expect(commonMetrics.investmentValueCents).toBe(330000);
+    expect(commonMetrics.cashCents).toBe(50000);
+    expect(commonMetrics.totalValueCents).toBe(380000);
+    expect(commonMetrics.gainLossCents).toBe(30000);
+    expect(commonMetrics.positions.map((position) => position.name)).toEqual(["Comune"]);
+  });
+
+  it("excludes shared investments and cash from partner views", () => {
+    const partnerMetrics = computeInvestmentPortfolioMetrics(data, "partner");
+
+    expect(partnerMetrics.investmentValueCents).toBe(0);
+    expect(partnerMetrics.cashCents).toBe(0);
+    expect(partnerMetrics.positions).toEqual([]);
   });
 
   it("calculates current-year performance without counting movements as gain", () => {
     const commonMetrics = computeInvestmentPortfolioMetrics(data, "common", baseDate);
 
     expect(commonMetrics.performanceTotalsCurrentYear).toEqual([
-      { name: "ETF", value: 20000, color: "#34d399" },
       { name: "Comune", value: 30000, color: "#34d399" },
     ]);
   });
 
-  it("builds a trend series for each investment", () => {
+  it("builds trend series only for investments in the current view", () => {
     const commonMetrics = computeInvestmentPortfolioMetrics(data, "common", baseDate);
+    const mineMetrics = computeInvestmentPortfolioMetrics(data, "mine", baseDate);
 
-    expect(commonMetrics.trend.map((series) => series.name)).toEqual(["ETF", "Comune"]);
-    expect(commonMetrics.trend[0].data.map((point) => point.date)).toEqual([
+    expect(commonMetrics.trend.map((series) => series.name)).toEqual(["Comune"]);
+    expect(mineMetrics.trend.map((series) => series.name)).toEqual(["ETF"]);
+    expect(mineMetrics.trend[0].data.map((point) => point.date)).toEqual([
       "2026-01-01",
       "2026-03-01",
       "2026-05-01",
     ]);
+  });
+
+  it("matches investment owners strictly by view", () => {
+    expect(ownerMatchesInvestmentView("shared", "common")).toBe(true);
+    expect(ownerMatchesInvestmentView("mine", "common")).toBe(false);
+    expect(ownerMatchesInvestmentView("mine", "mine")).toBe(true);
+    expect(ownerMatchesInvestmentView("shared", "mine")).toBe(false);
+    expect(ownerMatchesInvestmentView("partner", "partner")).toBe(true);
   });
 });
 

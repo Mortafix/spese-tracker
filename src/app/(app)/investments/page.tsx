@@ -13,7 +13,6 @@ import {
   deleteInvestmentTrackingAction,
   updateInvestmentAction,
   updateInvestmentTrackingAction,
-  upsertCashBalanceAction,
 } from "@/app/actions/mutations";
 import {
   ActionBar,
@@ -30,6 +29,7 @@ import {
   OwnerSelect,
   SignedMoneyInput,
 } from "@/components/forms";
+import { CashBalanceCards } from "@/components/investments/cash-balance-cards";
 import { InvestmentCharts } from "@/components/investments/investment-charts";
 import { InvestmentTrackingForm } from "@/components/investments/tracking-form";
 import { Button } from "@/components/ui/button";
@@ -52,13 +52,12 @@ import {
   investmentTrackingsFor,
   ownerMatchesInvestmentView,
   parseViewMode,
-  splitFactor,
 } from "@/lib/calculations";
 import { formatDate } from "@/lib/dates";
 import { centsToInputValue, formatCurrency } from "@/lib/money";
 import { getAppData } from "@/lib/repository";
 import { cn } from "@/lib/utils";
-import type { AppSettings, Investment, InvestmentTracking, Owner, ViewMode } from "@/types/domain";
+import type { Investment, InvestmentTracking, Owner, ViewMode } from "@/types/domain";
 
 type InvestmentsPageProps = {
   searchParams: Promise<{
@@ -94,28 +93,21 @@ function valueTone(value: number) {
   return "text-slate-300";
 }
 
-function ownerCashLabel(owner: Owner, settings: AppSettings) {
-  if (owner === "mine") return settings.profileNames.mine;
-  if (owner === "partner") return settings.profileNames.partner;
-  return "Entrambi";
+function ownerForView(view: ViewMode): Owner {
+  return view === "common" ? "shared" : view;
 }
 
 function displayInvestmentStats(
   investment: Investment,
   trackings: InvestmentTracking[],
-  view: ViewMode,
-  settings: AppSettings,
 ) {
-  const factor = splitFactor(investment.owner, view, settings);
   const originalCurrentValue = investmentCurrentValueCents(investment, trackings);
   const originalNetContributed = investmentNetContributedCents(investment, trackings);
-  const currentValue = Math.round(originalCurrentValue * factor);
-  const netContributed = Math.round(originalNetContributed * factor);
-  const gainLoss = currentValue - netContributed;
+  const gainLoss = originalCurrentValue - originalNetContributed;
 
   return {
-    currentValue,
-    netContributed,
+    currentValue: originalCurrentValue,
+    netContributed: originalNetContributed,
     gainLoss,
     returnPercent: investmentReturnPercent(investment, trackings),
     originalCurrentValue,
@@ -156,6 +148,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
   const visibleInvestments = data.investments
     .filter((investment) => ownerMatchesInvestmentView(investment.owner, view))
     .sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt.localeCompare(a.createdAt));
+  const cashBalances = cashOwners.map((owner) => cashBalanceForOwner(data, owner));
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">
@@ -213,60 +206,12 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
           <CardDescription>Un saldo corrente per profilo, senza storico movimenti.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 lg:grid-cols-3">
-          {cashOwners.map((owner) => {
-            const cashBalance = cashBalanceForOwner(data, owner);
-
-            return (
-              <details
-                key={owner}
-                className="rounded-lg border border-white/10 bg-white/[0.03]"
-              >
-                <summary className="flex cursor-pointer list-none flex-col gap-3 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-400">
-                        {ownerCashLabel(owner, data.settings)}
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold tracking-normal text-slate-50">
-                        {formatCurrency(cashBalance.balanceCents, currency)}
-                      </p>
-                    </div>
-                    <OwnerChip owner={owner} settings={data.settings} variant="colored" />
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Aggiornato al {formatDate(cashBalance.asOfDate)}
-                  </p>
-                </summary>
-                <div className="border-t border-white/10 p-4">
-                  <form action={upsertCashBalanceAction} className="space-y-4">
-                    <input type="hidden" name="owner" value={owner} />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Saldo">
-                        <MoneyInput
-                          name="balance"
-                          defaultValue={centsToInputValue(cashBalance.balanceCents)}
-                        />
-                      </Field>
-                      <Field label="Data">
-                        <Input
-                          name="asOfDate"
-                          type="date"
-                          defaultValue={cashBalance.asOfDate || today}
-                          required
-                        />
-                      </Field>
-                    </div>
-                    <Button type="submit" variant="secondary">
-                      <Save className="h-4 w-4" />
-                      Salva
-                    </Button>
-                  </form>
-                </div>
-              </details>
-            );
-          })}
-          </div>
+          <CashBalanceCards
+            balances={cashBalances}
+            currency={currency}
+            settings={data.settings}
+            today={today}
+          />
         </CardContent>
       </Card>
 
@@ -283,12 +228,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
             visibleInvestments.map((investment) => {
               const trackings = investmentTrackingsFor(investment, data.investmentTrackings);
               const history = [...trackings].reverse();
-              const stats = displayInvestmentStats(
-                investment,
-                trackings,
-                view,
-                data.settings,
-              );
+              const stats = displayInvestmentStats(investment, trackings);
               const updateFormId = `investment-update-${investment.id}`;
 
               return (
@@ -515,7 +455,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                 <Input name="startDate" type="date" defaultValue={today} required />
               </Field>
               <Field label="Owner">
-                <OwnerSelect settings={data.settings} defaultValue="mine" />
+                <OwnerSelect settings={data.settings} defaultValue={ownerForView(view)} />
               </Field>
               <Field label="Stato">
                 <ActiveField />

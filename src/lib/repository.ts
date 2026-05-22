@@ -1,4 +1,4 @@
-import { ObjectId, type Db } from "mongodb";
+import { ObjectId, type Collection, type Db } from "mongodb";
 import { demoData, defaultCategories, defaultSettings } from "@/lib/demo-data";
 import { getDb, isMongoConfigured } from "@/lib/mongodb";
 import type {
@@ -25,6 +25,8 @@ const COLLECTIONS = {
   investmentTrackings: "investmentTrackings",
   cashBalances: "cashBalances",
 } as const;
+
+const CATEGORY_NAME_COLLATION = { locale: "it", strength: 2 } as const;
 
 function nowIso() {
   return new Date().toISOString();
@@ -59,6 +61,102 @@ function mapSettingsDoc(doc: (AppSettings & { _id?: ObjectId | string }) | null)
   };
 }
 
+function normalizeCategoryName(name: string) {
+  return name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("it-IT");
+}
+
+function isIndexNotFoundError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    ("codeName" in error || "code" in error) &&
+    ((error as { codeName?: string }).codeName === "IndexNotFound" ||
+      (error as { code?: number }).code === 27)
+  );
+}
+
+async function dedupeCategories(db: Db) {
+  const categories = db.collection<WithMongoId<Category>>(COLLECTIONS.categories);
+  const existing = await categories.find({}).sort({ createdAt: 1 }).toArray();
+  const grouped = new Map<string, Array<WithMongoId<Category>>>();
+
+  existing.forEach((category) => {
+    const key = normalizeCategoryName(category.name);
+
+    if (!key) {
+      return;
+    }
+
+    grouped.set(key, [...(grouped.get(key) || []), category]);
+  });
+
+  for (const group of grouped.values()) {
+    if (group.length < 2) {
+      continue;
+    }
+
+    const [keeper, ...duplicates] = group.sort(
+      (a, b) =>
+        (a.createdAt || "").localeCompare(b.createdAt || "") ||
+        String(a._id).localeCompare(String(b._id)),
+    );
+    const keeperId = String(keeper._id);
+    const duplicateIds = duplicates.map((category) => category._id);
+    const duplicateCategoryIds = duplicates.map((category) => String(category._id));
+
+    await db.collection(COLLECTIONS.expenses).updateMany(
+      { categoryId: { $in: duplicateCategoryIds } },
+      { $set: { categoryId: keeperId, updatedAt: nowIso() } },
+    );
+    await categories.deleteMany({ _id: { $in: duplicateIds } });
+  }
+}
+
+async function seedDefaultCategories(categories: Collection<WithMongoId<Category>>) {
+  const timestamp = nowIso();
+
+  for (const category of defaultCategories) {
+    await categories.updateOne(
+      { name: category.name },
+      {
+        $setOnInsert: {
+          _id: new ObjectId(),
+          name: category.name,
+          color: category.color,
+          icon: category.icon,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      },
+      { upsert: true, collation: CATEGORY_NAME_COLLATION },
+    );
+  }
+}
+
+async function ensureCategoryNameIndex(categories: Collection<WithMongoId<Category>>) {
+  const indexes = await categories.indexes();
+  const legacyNameIndex = indexes.find((index) => index.name === "name_1" && !index.unique);
+
+  if (legacyNameIndex) {
+    try {
+      await categories.dropIndex("name_1");
+    } catch (error) {
+      if (!isIndexNotFoundError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  await categories.createIndex(
+    { name: 1 },
+    {
+      name: "categories_name_unique_ci",
+      unique: true,
+      collation: CATEGORY_NAME_COLLATION,
+    },
+  );
+}
+
 async function ensureDefaults(db: Db) {
   const settings = db.collection<AppSettings>(COLLECTIONS.settings);
   const categories =
@@ -70,24 +168,10 @@ async function ensureDefaults(db: Db) {
     { upsert: true },
   );
 
-  const categoryCount = await categories.countDocuments();
-
-  if (categoryCount === 0) {
-    const timestamp = nowIso();
-    await categories.insertMany(
-      defaultCategories.map((category) => ({
-        _id: new ObjectId(),
-        name: category.name,
-        color: category.color,
-        icon: category.icon,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      })),
-    );
-  }
+  await dedupeCategories(db);
 
   await Promise.all([
-    categories.createIndex({ name: 1 }),
+    ensureCategoryNameIndex(categories),
     db.collection(COLLECTIONS.expenses).createIndex({ active: 1, owner: 1 }),
     db.collection(COLLECTIONS.incomes).createIndex({ active: 1, owner: 1 }),
     db.collection(COLLECTIONS.loans).createIndex({ active: 1, owner: 1 }),
@@ -97,6 +181,12 @@ async function ensureDefaults(db: Db) {
       .createIndex({ investmentId: 1, trackedAt: 1 }),
     db.collection(COLLECTIONS.cashBalances).createIndex({ owner: 1 }, { unique: true }),
   ]);
+
+  const categoryCount = await categories.countDocuments();
+
+  if (categoryCount === 0) {
+    await seedDefaultCategories(categories);
+  }
 }
 
 export async function getAppData(): Promise<AppData> {
