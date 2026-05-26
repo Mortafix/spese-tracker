@@ -483,16 +483,28 @@ describe("one-time payment calculations", () => {
     expect(parseOneTimePaymentPeriod("all")).toBe("all");
     expect(parseOneTimePaymentPeriod("q2")).toBe("q2");
     expect(parseOneTimePaymentPeriod("q4")).toBe("q4");
+    expect(parseOneTimePaymentPeriod("last3Years")).toBe("last3Years");
+    expect(parseOneTimePaymentPeriod("allYears")).toBe("allYears");
     expect(parseOneTimePaymentPeriod("unknown")).toBe("all");
   });
 
-  it("filters payments by year and quarter", () => {
+  it("filters payments by year, quarter and multi-year periods", () => {
     expect(
       filterOneTimePaymentsByPeriod(data.oneTimePayments, 2026, "q2").map((payment) => payment.id),
     ).toEqual(["one-time-3", "one-time-2"]);
     expect(
       filterOneTimePaymentsByPeriod(data.oneTimePayments, 2026, "q4").map((payment) => payment.id),
     ).toEqual(["one-time-1"]);
+    expect(
+      filterOneTimePaymentsByPeriod(data.oneTimePayments, 2025, "last3Years").map(
+        (payment) => payment.id,
+      ),
+    ).toEqual(["one-time-4"]);
+    expect(
+      filterOneTimePaymentsByPeriod(data.oneTimePayments, 2026, "allYears").map(
+        (payment) => payment.id,
+      ),
+    ).toEqual(["one-time-1", "one-time-3", "one-time-2", "one-time-4"]);
   });
 
   it("aggregates income, expenses, cash and monthly trend independently", () => {

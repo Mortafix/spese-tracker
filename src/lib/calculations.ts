@@ -66,6 +66,8 @@ export const oneTimePaymentPeriodOptions = [
   { value: "q2", label: "Q2" },
   { value: "q3", label: "Q3" },
   { value: "q4", label: "Q4" },
+  { value: "last3Years", label: "Ultimi 3 anni" },
+  { value: "allYears", label: "Tutto" },
 ] as const;
 
 export type OneTimePaymentPeriod = (typeof oneTimePaymentPeriodOptions)[number]["value"];
@@ -1046,7 +1048,21 @@ export function oneTimePaymentMatchesPeriod(
   year: number,
   period: OneTimePaymentPeriod,
 ) {
-  if (!isValidDateOnlyString(payment.date) || oneTimePaymentYear(payment) !== year) {
+  if (!isValidDateOnlyString(payment.date)) {
+    return false;
+  }
+
+  const paymentYear = oneTimePaymentYear(payment);
+
+  if (period === "allYears") {
+    return true;
+  }
+
+  if (period === "last3Years") {
+    return paymentYear >= year - 2 && paymentYear <= year;
+  }
+
+  if (paymentYear !== year) {
     return false;
   }
 
@@ -1070,7 +1086,10 @@ export function computeOneTimePaymentMetrics(
   period: OneTimePaymentPeriod,
 ): OneTimePaymentMetrics {
   const periodPayments = filterOneTimePaymentsByPeriod(data.oneTimePayments, year, period);
-  const yearPayments = filterOneTimePaymentsByPeriod(data.oneTimePayments, year, "all");
+  const trendPayments =
+    period === "allYears" || period === "last3Years"
+      ? periodPayments
+      : filterOneTimePaymentsByPeriod(data.oneTimePayments, year, "all");
   const categoryMap = new Map<string, ChartDatum>();
   const monthlyMap = new Map<number, OneTimePaymentMonthlyDatum>();
 
@@ -1103,7 +1122,7 @@ export function computeOneTimePaymentMetrics(
     );
   });
 
-  yearPayments.forEach((payment) => {
+  trendPayments.forEach((payment) => {
     const month = oneTimePaymentMonth(payment);
     const row = monthlyMap.get(month);
 

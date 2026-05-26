@@ -57,6 +57,7 @@ type OneTimePaymentsPageProps = {
   searchParams: Promise<{
     year?: string;
     period?: string;
+    category?: string;
   }>;
 };
 
@@ -208,9 +209,17 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
   const maxYear = years[0] ?? ONE_TIME_PAYMENT_MIN_YEAR;
   const selectedYear = parseOneTimePaymentYear(params.year, data.oneTimePayments);
   const selectedPeriod = parseOneTimePaymentPeriod(params.period);
-  const metrics = computeOneTimePaymentMetrics(data, selectedYear, selectedPeriod);
+  const selectedCategory = data.categories.find((category) => category.id === params.category);
+  const categoryFilteredPayments = selectedCategory
+    ? data.oneTimePayments.filter((payment) => payment.categoryId === selectedCategory.id)
+    : data.oneTimePayments;
+  const filteredData = {
+    ...data,
+    oneTimePayments: categoryFilteredPayments,
+  };
+  const metrics = computeOneTimePaymentMetrics(filteredData, selectedYear, selectedPeriod);
   const visiblePayments = filterOneTimePaymentsByPeriod(
-    data.oneTimePayments,
+    categoryFilteredPayments,
     selectedYear,
     selectedPeriod,
   );
@@ -261,13 +270,15 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
       <Card>
         <CardHeader>
           <CardTitle>
-            <SectionTitle icon={CalendarDays}>Vista periodo</SectionTitle>
+            <SectionTitle icon={CalendarDays}>Filtri</SectionTitle>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ExtraPeriodControls
             selectedYear={selectedYear}
             selectedPeriod={selectedPeriod}
+            selectedCategoryId={selectedCategory?.id}
+            categories={data.categories}
             minYear={ONE_TIME_PAYMENT_MIN_YEAR}
             maxYear={maxYear}
           />
