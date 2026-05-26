@@ -516,8 +516,26 @@ describe("one-time payment calculations", () => {
     expect(metrics.cashCents).toBe(50000);
     expect(metrics.count).toBe(2);
     expect(metrics.categoryTotals).toEqual([{ name: "Casa", value: 125000, color: "#2563eb" }]);
+    expect(metrics.trendGranularity).toBe("month");
     expect(metrics.monthlyTrend.find((item) => item.month === "05")?.expenseCents).toBe(50000);
     expect(metrics.monthlyTrend.find((item) => item.month === "12")?.incomeCents).toBe(180000);
+  });
+
+  it("aggregates trend by year for multi-year periods", () => {
+    const lastThreeYears = computeOneTimePaymentMetrics(data, 2026, "last3Years");
+    const allYears = computeOneTimePaymentMetrics(data, 2026, "allYears");
+
+    expect(lastThreeYears.trendGranularity).toBe("year");
+    expect(lastThreeYears.monthlyTrend.map((item) => item.month)).toEqual([
+      "2024",
+      "2025",
+      "2026",
+    ]);
+    expect(lastThreeYears.monthlyTrend.find((item) => item.month === "2026")?.expenseCents).toBe(
+      125000,
+    );
+    expect(allYears.trendGranularity).toBe("year");
+    expect(allYears.monthlyTrend.map((item) => item.month)).toEqual(["2025", "2026"]);
   });
 });
 

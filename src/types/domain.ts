@@ -240,5 +240,6 @@ export type OneTimePaymentMetrics = {
   count: number;
   categoryTotals: ChartDatum[];
   directionTotals: ChartDatum[];
+  trendGranularity: "month" | "year";
   monthlyTrend: OneTimePaymentMonthlyDatum[];
 };

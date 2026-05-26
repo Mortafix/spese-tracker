@@ -264,6 +264,7 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
         directionTotals={metrics.directionTotals}
         categoryTotals={metrics.categoryTotals}
         monthlyTrend={metrics.monthlyTrend}
+        trendGranularity={metrics.trendGranularity}
         currency={currency}
       />
 

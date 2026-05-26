@@ -1086,20 +1086,38 @@ export function computeOneTimePaymentMetrics(
   period: OneTimePaymentPeriod,
 ): OneTimePaymentMetrics {
   const periodPayments = filterOneTimePaymentsByPeriod(data.oneTimePayments, year, period);
+  const trendGranularity =
+    period === "allYears" || period === "last3Years" ? "year" : "month";
   const trendPayments =
-    period === "allYears" || period === "last3Years"
+    trendGranularity === "year"
       ? periodPayments
       : filterOneTimePaymentsByPeriod(data.oneTimePayments, year, "all");
   const categoryMap = new Map<string, ChartDatum>();
-  const monthlyMap = new Map<number, OneTimePaymentMonthlyDatum>();
+  const trendMap = new Map<number, OneTimePaymentMonthlyDatum>();
 
-  for (let month = 1; month <= 12; month += 1) {
-    monthlyMap.set(month, {
-      month: String(month).padStart(2, "0"),
-      incomeCents: 0,
-      expenseCents: 0,
-      netCents: 0,
+  if (trendGranularity === "year") {
+    const years =
+      period === "last3Years"
+        ? [year - 2, year - 1, year]
+        : [...new Set(trendPayments.map(oneTimePaymentYear))].sort((a, b) => a - b);
+
+    years.forEach((trendYear) => {
+      trendMap.set(trendYear, {
+        month: String(trendYear),
+        incomeCents: 0,
+        expenseCents: 0,
+        netCents: 0,
+      });
     });
+  } else {
+    for (let month = 1; month <= 12; month += 1) {
+      trendMap.set(month, {
+        month: String(month).padStart(2, "0"),
+        incomeCents: 0,
+        expenseCents: 0,
+        netCents: 0,
+      });
+    }
   }
 
   const incomeCents = periodPayments
@@ -1123,8 +1141,9 @@ export function computeOneTimePaymentMetrics(
   });
 
   trendPayments.forEach((payment) => {
-    const month = oneTimePaymentMonth(payment);
-    const row = monthlyMap.get(month);
+    const trendKey =
+      trendGranularity === "year" ? oneTimePaymentYear(payment) : oneTimePaymentMonth(payment);
+    const row = trendMap.get(trendKey);
 
     if (!row) {
       return;
@@ -1150,6 +1169,7 @@ export function computeOneTimePaymentMetrics(
       { name: "Entrate", value: incomeCents, color: "#34d399" },
       { name: "Uscite", value: expenseCents, color: "#fb7185" },
     ].filter((item) => item.value > 0),
-    monthlyTrend: [...monthlyMap.values()],
+    trendGranularity,
+    monthlyTrend: [...trendMap.values()],
   };
 }

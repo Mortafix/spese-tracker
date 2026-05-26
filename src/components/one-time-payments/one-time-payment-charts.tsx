@@ -58,18 +58,23 @@ function ChartTooltip({
   payload,
   label,
   currency,
+  trendGranularity = "month",
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
   currency: string;
+  trendGranularity?: "month" | "year";
 }) {
   if (!active || !payload?.length) {
     return null;
   }
 
   const visiblePayload = payload.filter((entry) => typeof entry.value === "number");
-  const tooltipLabel = label && monthLabels[label] ? monthLabels[label] : label || payload[0].name;
+  const tooltipLabel =
+    trendGranularity === "month" && label && monthLabels[label]
+      ? monthLabels[label]
+      : label || payload[0].name;
 
   return (
     <div className="rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm shadow-xl">
@@ -112,11 +117,13 @@ export function OneTimePaymentCharts({
   directionTotals,
   categoryTotals,
   monthlyTrend,
+  trendGranularity,
   currency,
 }: {
   directionTotals: ChartDatum[];
   categoryTotals: ChartDatum[];
   monthlyTrend: OneTimePaymentMonthlyDatum[];
+  trendGranularity: "month" | "year";
   currency: string;
 }) {
   const [directionRef, directionWidth] = useMeasuredWidth();
@@ -201,9 +208,15 @@ export function OneTimePaymentCharts({
       <div className="min-h-80 rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-2xl shadow-black/20">
         <div className="mb-3">
           <h2 className="text-base font-semibold text-slate-50">
-            <SectionTitle icon={ChartLine}>Andamento annuo</SectionTitle>
+            <SectionTitle icon={ChartLine}>
+              {trendGranularity === "year" ? "Andamento per anno" : "Andamento mensile"}
+            </SectionTitle>
           </h2>
-          <p className="text-sm text-slate-400">Mesi dell&apos;anno selezionato</p>
+          <p className="text-sm text-slate-400">
+            {trendGranularity === "year"
+              ? "Totali aggregati per anno"
+              : "Mesi dell'anno selezionato"}
+          </p>
         </div>
         <div ref={trendRef} className="h-[220px] min-w-0">
           {trendWidth > 0 && hasTrend ? (
@@ -218,7 +231,11 @@ export function OneTimePaymentCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => monthLabels[String(value)] || String(value)}
+                tickFormatter={(value) =>
+                  trendGranularity === "month"
+                    ? monthLabels[String(value)] || String(value)
+                    : String(value)
+                }
               />
               <YAxis
                 tickLine={false}
@@ -227,7 +244,11 @@ export function OneTimePaymentCharts({
                 tickFormatter={(value) => `${Number(value) / 100}`}
                 width={46}
               />
-              <Tooltip content={<ChartTooltip currency={currency} />} />
+              <Tooltip
+                content={
+                  <ChartTooltip currency={currency} trendGranularity={trendGranularity} />
+                }
+              />
               <Line
                 type="monotone"
                 dataKey="incomeCents"
