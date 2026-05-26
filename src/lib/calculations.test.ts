@@ -471,7 +471,13 @@ describe("investment calculations", () => {
 
 describe("one-time payment calculations", () => {
   it("parses available years and falls back to the newest year", () => {
-    expect(oneTimePaymentAvailableYears(data.oneTimePayments, baseDate)).toEqual([2026, 2025]);
+    expect(oneTimePaymentAvailableYears(data.oneTimePayments, baseDate)).toEqual([
+      2026,
+      2025,
+      2024,
+      2023,
+      2022,
+    ]);
     expect(parseOneTimePaymentYear("2025", data.oneTimePayments, baseDate)).toBe(2025);
     expect(parseOneTimePaymentYear("2030", data.oneTimePayments, baseDate)).toBe(2026);
     expect(parseOneTimePaymentPeriod("all")).toBe("all");

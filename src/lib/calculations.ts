@@ -70,7 +70,7 @@ export const oneTimePaymentPeriodOptions = [
 
 export type OneTimePaymentPeriod = (typeof oneTimePaymentPeriodOptions)[number]["value"];
 
-export const ONE_TIME_PAYMENT_MIN_YEAR = 2025;
+export const ONE_TIME_PAYMENT_MIN_YEAR = 2022;
 
 const recurrenceMonthIntervals: Partial<Record<Recurrence, number>> = {
   monthly: 1,
