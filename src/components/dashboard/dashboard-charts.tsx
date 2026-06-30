@@ -62,6 +62,18 @@ function ChartLegend({ data }: { data: ChartDatum[] }) {
   );
 }
 
+function piePaddingAngle(data: ChartDatum[]) {
+  return data.length > 1 ? 5 : 0;
+}
+
+function EmptyChartMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-4 text-center text-sm text-slate-400">
+      {children}
+    </div>
+  );
+}
+
 function useMeasuredWidth() {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -98,6 +110,8 @@ export function DashboardCharts({
   const [barRef, barWidth] = useMeasuredWidth();
   const [categoryMode, setCategoryMode] = useState<"bar" | "pie">("bar");
   const [pieRef, pieWidth] = useMeasuredWidth();
+  const hasCategoryTotals = categoryTotals.length > 0;
+  const hasOwnerTotals = ownerTotals.length > 0;
   const categoryBars = useMemo(
     () => [...categoryTotals].sort((a, b) => a.value - b.value),
     [categoryTotals],
@@ -152,7 +166,10 @@ export function DashboardCharts({
           </div>
         </div>
         <div ref={barRef} className="h-[220px] min-w-0">
-          {barWidth > 0 && categoryMode === "bar" ? (
+          {!hasCategoryTotals ? (
+            <EmptyChartMessage>Nessuna spesa ricorrente per questa vista.</EmptyChartMessage>
+          ) : null}
+          {barWidth > 0 && hasCategoryTotals && categoryMode === "bar" ? (
             <BarChart
               width={barWidth}
               height={220}
@@ -188,7 +205,7 @@ export function DashboardCharts({
                 nameKey="name"
                 innerRadius={54}
                 outerRadius={88}
-                paddingAngle={5}
+                paddingAngle={piePaddingAngle(categoryTotals)}
                 stroke="none"
               >
                 {categoryTotals.map((entry) => (
@@ -199,7 +216,9 @@ export function DashboardCharts({
             </PieChart>
           ) : null}
         </div>
-        {categoryMode === "pie" ? <ChartLegend data={categoryTotals} /> : null}
+        {categoryMode === "pie" && hasCategoryTotals ? (
+          <ChartLegend data={categoryTotals} />
+        ) : null}
       </div>
 
       <div className="min-h-80 rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-2xl shadow-black/20">
@@ -212,7 +231,10 @@ export function DashboardCharts({
           </p>
         </div>
         <div ref={pieRef} className="h-[220px] min-w-0">
-          {pieWidth > 0 ? (
+          {!hasOwnerTotals ? (
+            <EmptyChartMessage>Nessuna spesa ricorrente per questa vista.</EmptyChartMessage>
+          ) : null}
+          {pieWidth > 0 && hasOwnerTotals ? (
             <PieChart width={pieWidth} height={220}>
               <Pie
                 data={ownerTotals}
@@ -220,7 +242,7 @@ export function DashboardCharts({
                 nameKey="name"
                 innerRadius={58}
                 outerRadius={88}
-                paddingAngle={5}
+                paddingAngle={piePaddingAngle(ownerTotals)}
                 stroke="none"
               >
                 {ownerTotals.map((entry) => (
@@ -231,7 +253,7 @@ export function DashboardCharts({
             </PieChart>
           ) : null}
         </div>
-        <ChartLegend data={ownerTotals} />
+        {hasOwnerTotals ? <ChartLegend data={ownerTotals} /> : null}
       </div>
     </div>
   );

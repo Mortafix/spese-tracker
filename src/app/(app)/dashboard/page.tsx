@@ -27,8 +27,11 @@ export default async function DashboardPage({
   const params = await searchParams;
   const view = parseViewMode(params.view);
   const data = await getAppData();
-  const metrics = computeDashboardMetrics(data, view);
-  const totalMetrics = computeDashboardMetrics(data, "common");
+  const today = new Date();
+  const metrics = computeDashboardMetrics(data, view, today);
+  const totalMetrics = computeDashboardMetrics(data, "common", today, {
+    commonScope: "allOwners",
+  });
   const currency = data.settings.currency;
 
   return (

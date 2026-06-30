@@ -21,6 +21,7 @@ import {
   parseOneTimePaymentPeriod,
   parseOneTimePaymentYear,
   remainingExpenseThisMonth,
+  remainingExpenseUntil,
 } from "@/lib/calculations";
 import {
   DEFAULT_CATEGORY_ICON,
@@ -289,6 +290,13 @@ describe("recurring expense calculations", () => {
     ).toBe(0);
   });
 
+  it("sums recurring expenses until a custom period end", () => {
+    const periodEnd = new Date("2026-06-10T12:00:00");
+
+    expect(remainingExpenseUntil(monthlyExpense, periodEnd, baseDate)).toBe(100000);
+    expect(remainingExpenseUntil(weeklyExpense, periodEnd, baseDate)).toBe(15000);
+  });
+
   it("keeps compatibility with legacy monthly documents", () => {
     expect(remainingExpenseThisMonth(legacyMonthlyExpense, baseDate)).toBe(100000);
     expect(
@@ -308,7 +316,7 @@ describe("recurring expense calculations", () => {
     });
     const expenses = [monthlyExpense, weeklyExpense, inactiveExpense, partnerExpense];
 
-    expect(expenseMonthlyTotalCents(expenses, "mine", data.settings)).toBe(80000);
+    expect(expenseMonthlyTotalCents(expenses, "mine", data.settings)).toBe(20000);
     expect(expenseMonthlyTotalCents(expenses, "common", data.settings)).toBe(100000);
     expect(expenseMonthlyTotalCents(expenses, "partner", data.settings, "category-2")).toBe(
       70000,
@@ -336,20 +344,46 @@ describe("loan calculations", () => {
 });
 
 describe("dashboard metrics", () => {
-  it("applies shared ratio in personal views", () => {
+  it("uses only personal totals in personal views", () => {
     const metrics = computeDashboardMetrics(data, "mine", baseDate);
 
-    expect(metrics.incomeCents).toBe(260000);
-    expect(metrics.expenseCents).toBe(80000);
-    expect(metrics.loanCents).toBe(12000);
-    expect(metrics.availableCents).toBe(168000);
+    expect(metrics.incomeCents).toBe(200000);
+    expect(metrics.expenseCents).toBe(20000);
+    expect(metrics.loanCents).toBe(0);
+    expect(metrics.availableCents).toBe(180000);
+    expect(metrics.upcomingPayments.map((item) => item.id)).not.toContain(monthlyExpense.id);
   });
 
-  it("uses full totals in common view", () => {
+  it("uses only shared totals in common view", () => {
     const metrics = computeDashboardMetrics(data, "common", baseDate);
+
+    expect(metrics.incomeCents).toBe(100000);
+    expect(metrics.recurringCents).toBe(120000);
+    expect(metrics.upcomingPayments.map((item) => item.id)).not.toContain(weeklyExpense.id);
+  });
+
+  it("can compute all-owner totals for personal dashboard comparisons", () => {
+    const metrics = computeDashboardMetrics(data, "common", baseDate, {
+      commonScope: "allOwners",
+    });
 
     expect(metrics.incomeCents).toBe(300000);
     expect(metrics.recurringCents).toBe(140000);
+  });
+
+  it("calculates remaining payments through the 10th of next month", () => {
+    const earlyLoan = {
+      ...loan,
+      id: "early-loan",
+      paymentDayOfMonth: 5,
+    };
+    const metrics = computeDashboardMetrics(
+      { ...data, loans: [earlyLoan] },
+      "common",
+      baseDate,
+    );
+
+    expect(metrics.remainingThisMonthCents).toBe(120000);
   });
 
   it("calculates the shared account top-up from shared outflows", () => {
@@ -357,13 +391,45 @@ describe("dashboard metrics", () => {
     expect(computeDashboardMetrics(data, "common", baseDate).sharedAccountTopUpCents).toBe(120000);
   });
 
-  it("keeps original upcoming payment amounts next to split amounts", () => {
+  it("breaks down owner chart by personal and common shares", () => {
+    const partnerExpense = makeExpense("monthly", 70000, "2026-05-20", {
+      id: "partner-expense",
+      owner: "partner",
+    });
+    const dataWithPartnerExpense = {
+      ...data,
+      expenses: [...data.expenses, partnerExpense],
+    };
+
+    const mineMetrics = computeDashboardMetrics(dataWithPartnerExpense, "mine", baseDate);
+    const partnerMetrics = computeDashboardMetrics(dataWithPartnerExpense, "partner", baseDate);
+    const commonMetrics = computeDashboardMetrics(dataWithPartnerExpense, "common", baseDate);
+
+    expect(mineMetrics.expenseCents).toBe(20000);
+    expect(mineMetrics.ownerTotals).toEqual([
+      { name: "Quota comune", value: 72000, color: "#2dd4bf" },
+      { name: "Io", value: 20000, color: "#38bdf8" },
+    ]);
+    expect(partnerMetrics.expenseCents).toBe(70000);
+    expect(partnerMetrics.ownerTotals).toEqual([
+      { name: "Quota comune", value: 48000, color: "#2dd4bf" },
+      { name: "Lei", value: 70000, color: "#f472b6" },
+    ]);
+    expect(commonMetrics.recurringCents).toBe(120000);
+    expect(commonMetrics.ownerTotals).toEqual([
+      { name: "Comune", value: 120000, color: "#2dd4bf" },
+      { name: "Io", value: 20000, color: "#38bdf8" },
+      { name: "Lei", value: 70000, color: "#f472b6" },
+    ]);
+  });
+
+  it("keeps original upcoming payment amounts for visible personal expenses", () => {
     const payment = computeDashboardMetrics(data, "mine", baseDate).upcomingPayments.find(
-      (item) => item.id === monthlyExpense.id,
+      (item) => item.id === weeklyExpense.id,
     );
 
-    expect(payment?.amountCents).toBe(60000);
-    expect(payment?.originalAmountCents).toBe(100000);
+    expect(payment?.amountCents).toBe(5000);
+    expect(payment?.originalAmountCents).toBe(5000);
   });
 
   it("excludes completed active loans from dashboard metrics", () => {
@@ -563,11 +629,12 @@ describe("date formatting", () => {
 });
 
 describe("expense view filters", () => {
-  it("shows shared expenses in personal views and only shared ones in common view", () => {
+  it("keeps personal and common expense views separate", () => {
     expect(ownerMatchesExpenseView("mine", "mine")).toBe(true);
-    expect(ownerMatchesExpenseView("shared", "mine")).toBe(true);
+    expect(ownerMatchesExpenseView("shared", "mine")).toBe(false);
     expect(ownerMatchesExpenseView("partner", "mine")).toBe(false);
     expect(ownerMatchesExpenseView("partner", "partner")).toBe(true);
+    expect(ownerMatchesExpenseView("shared", "partner")).toBe(false);
     expect(ownerMatchesExpenseView("shared", "common")).toBe(true);
     expect(ownerMatchesExpenseView("mine", "common")).toBe(false);
   });

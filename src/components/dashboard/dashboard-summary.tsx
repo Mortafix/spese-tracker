@@ -92,7 +92,7 @@ export function DashboardSummary({
           <span>
             {showComparison
               ? `Vista ${profileName}`
-              : "Vista comune: valori totali del nucleo"}
+              : "Vista comune: solo valori comuni"}
           </span>
         </div>
 

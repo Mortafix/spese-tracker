@@ -212,8 +212,8 @@ export function InvestmentCharts({
   const [allocationRef, allocationWidth] = useMeasuredWidth();
   const [performanceRef, performanceWidth] = useMeasuredWidth();
   const [trendRef, trendWidth] = useMeasuredWidth();
-  const [performancePeriod, setPerformancePeriod] = useState<ChartPeriod>("all");
-  const [trendPeriod, setTrendPeriod] = useState<ChartPeriod>("all");
+  const [performancePeriod, setPerformancePeriod] = useState<ChartPeriod>("year");
+  const [trendPeriod, setTrendPeriod] = useState<ChartPeriod>("year");
   const selectedPerformanceTotals =
     performancePeriod === "all" ? performanceTotals : performanceTotalsCurrentYear;
   const selectedTrend = trendPeriod === "all" ? trend : trendCurrentYear;

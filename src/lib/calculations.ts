@@ -83,6 +83,8 @@ const recurrenceMonthIntervals: Partial<Record<Recurrence, number>> = {
   annual: 12,
 };
 
+type CommonDashboardScope = "sharedOnly" | "allOwners";
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -160,11 +162,11 @@ export function ownerLabel(owner: Owner, settings: AppSettings) {
 
 export function ownerMatchesExpenseView(owner: Owner, view: ViewMode) {
   if (view === "mine") {
-    return owner === "mine" || owner === "shared";
+    return owner === "mine";
   }
 
   if (view === "partner") {
-    return owner === "partner" || owner === "shared";
+    return owner === "partner";
   }
 
   return owner === "shared";
@@ -181,23 +183,58 @@ export function expenseMatchesCategoryFilter(expense: Expense, categoryId?: stri
 }
 
 export function splitFactor(owner: Owner, view: ViewMode, settings: AppSettings) {
+  void settings;
+
   if (view === "common") {
-    return 1;
+    return owner === "shared" ? 1 : 0;
   }
 
   if (view === "mine") {
     if (owner === "mine") return 1;
-    if (owner === "shared") return settings.sharedRatio.mine / 100;
     return 0;
   }
 
   if (owner === "partner") return 1;
-  if (owner === "shared") return settings.sharedRatio.partner / 100;
   return 0;
 }
 
 export function applySplit(cents: number, owner: Owner, view: ViewMode, settings: AppSettings) {
   return Math.round(cents * splitFactor(owner, view, settings));
+}
+
+function dashboardSplitFactor(
+  owner: Owner,
+  view: ViewMode,
+  settings: AppSettings,
+  commonScope: CommonDashboardScope,
+) {
+  if (view === "common" && commonScope === "allOwners") {
+    return 1;
+  }
+
+  return splitFactor(owner, view, settings);
+}
+
+function applyDashboardSplit(
+  cents: number,
+  owner: Owner,
+  view: ViewMode,
+  settings: AppSettings,
+  commonScope: CommonDashboardScope,
+) {
+  return Math.round(cents * dashboardSplitFactor(owner, view, settings, commonScope));
+}
+
+function sharedAccountTopUpFactor(view: ViewMode, settings: AppSettings) {
+  if (view === "mine") {
+    return settings.sharedRatio.mine / 100;
+  }
+
+  if (view === "partner") {
+    return settings.sharedRatio.partner / 100;
+  }
+
+  return 1;
 }
 
 export function expenseMonthlyImpact(expense: Expense) {
@@ -359,35 +396,71 @@ export function daysUntil(date: Date, today = new Date()) {
 
 export function remainingExpenseThisMonth(expense: Expense, today = new Date()) {
   const zonedToday = dateInAppTimeZone(today);
-
-  if (!expense.active) {
-    return 0;
-  }
-
-  const nextDueDate = nextExpenseDueDate(expense, zonedToday);
   const monthEnd = makeDate(
     zonedToday.getFullYear(),
     zonedToday.getMonth(),
     daysInMonth(zonedToday.getFullYear(), zonedToday.getMonth()),
   );
 
-  if (nextDueDate > monthEnd) {
+  return remainingExpenseUntil(expense, monthEnd, zonedToday);
+}
+
+function nextSalaryWindowEnd(today: Date) {
+  return makeDate(today.getFullYear(), today.getMonth() + 1, 10);
+}
+
+export function remainingExpenseUntil(
+  expense: Expense,
+  periodEnd: Date,
+  today = new Date(),
+) {
+  const zonedToday = dateInAppTimeZone(today);
+
+  if (!expense.active) {
     return 0;
   }
 
-  if (expense.recurrence !== "weekly") {
-    return expense.amountCents;
+  const nextDueDate = nextExpenseDueDate(expense, zonedToday);
+
+  if (nextDueDate > periodEnd) {
+    return 0;
   }
 
   let total = 0;
   const dueDate = new Date(nextDueDate);
 
-  while (dueDate <= monthEnd) {
+  while (dueDate <= periodEnd) {
     total += expense.amountCents;
-    dueDate.setDate(dueDate.getDate() + 7);
+
+    if (expense.recurrence === "weekly") {
+      dueDate.setDate(dueDate.getDate() + 7);
+      continue;
+    }
+
+    dueDate.setTime(
+      addMonthsClamped(
+        dueDate,
+        recurrenceMonthIntervals[expense.recurrence] || 1,
+      ).getTime(),
+    );
   }
 
   return total;
+}
+
+function remainingLoanUntil(loan: Loan, periodEnd: Date, today: Date) {
+  let includedInstallments = 0;
+  let dueDate = monthlyDueDate(loan.paymentDayOfMonth, today);
+
+  while (
+    dueDate <= periodEnd &&
+    paidInstallments(loan, today) + includedInstallments < loan.totalInstallments
+  ) {
+    includedInstallments += 1;
+    dueDate = addMonthsClamped(dueDate, 1);
+  }
+
+  return loan.paymentCents * includedInstallments;
 }
 
 export function paidInstallments(loan: Loan, today = new Date()) {
@@ -496,6 +569,31 @@ function ownerChartName(owner: Owner, view: ViewMode, settings: AppSettings) {
   return view === "mine" ? settings.profileNames.mine : settings.profileNames.partner;
 }
 
+function ownerChartSplitFactor(owner: Owner, view: ViewMode, settings: AppSettings) {
+  if (view === "common") {
+    return 1;
+  }
+
+  if (owner === view) {
+    return 1;
+  }
+
+  if (owner === "shared") {
+    return sharedAccountTopUpFactor(view, settings);
+  }
+
+  return 0;
+}
+
+function applyOwnerChartSplit(
+  cents: number,
+  owner: Owner,
+  view: ViewMode,
+  settings: AppSettings,
+) {
+  return Math.round(cents * ownerChartSplitFactor(owner, view, settings));
+}
+
 export function sharedMonthlyOutflowCents(data: AppData, today = new Date()) {
   const sharedExpenses = data.expenses
     .filter((expense) => expense.active && expense.owner === "shared")
@@ -511,8 +609,10 @@ export function computeDashboardMetrics(
   data: AppData,
   view: ViewMode,
   today = new Date(),
+  options: { commonScope?: CommonDashboardScope } = {},
 ): DashboardMetrics {
   const zonedToday = dateInAppTimeZone(today);
+  const commonScope = options.commonScope ?? "sharedOnly";
   const activeIncomes = data.incomes.filter((income) => income.active);
   const activeExpenses = data.expenses.filter((expense) => expense.active);
   const activeLoans = data.loans.filter((loan) => loan.active && !loanIsCompleted(loan, zonedToday));
@@ -521,18 +621,26 @@ export function computeDashboardMetrics(
 
   const incomeCents = activeIncomes.reduce(
     (sum, income) =>
-      sum + applySplit(income.monthlyAmountCents, income.owner, view, data.settings),
+      sum +
+      applyDashboardSplit(
+        income.monthlyAmountCents,
+        income.owner,
+        view,
+        data.settings,
+        commonScope,
+      ),
     0,
   );
 
   const expenseCents = activeExpenses.reduce((sum, expense) => {
     const category = data.categories.find((item) => item.id === expense.categoryId);
     const monthlyImpact = expenseMonthlyImpact(expense);
-    const splitAmount = applySplit(
+    const splitAmount = applyDashboardSplit(
       monthlyImpact,
       expense.owner,
       view,
       data.settings,
+      commonScope,
     );
 
     pushChartValue(
@@ -544,7 +652,7 @@ export function computeDashboardMetrics(
     pushChartValue(
       ownerMap,
       ownerChartName(expense.owner, view, data.settings),
-      splitAmount,
+      applyOwnerChartSplit(monthlyImpact, expense.owner, view, data.settings),
       expense.owner === "shared" ? OWNER_COLORS.shared : OWNER_COLORS[expense.owner],
     );
 
@@ -552,18 +660,19 @@ export function computeDashboardMetrics(
   }, 0);
 
   const loanCents = activeLoans.reduce((sum, loan) => {
-    const splitAmount = applySplit(
+    const splitAmount = applyDashboardSplit(
       loan.paymentCents,
       loan.owner,
       view,
       data.settings,
+      commonScope,
     );
 
     pushChartValue(categoryMap, "Mutui e finanziamenti", splitAmount, "#f59e0b");
     pushChartValue(
       ownerMap,
       ownerChartName(loan.owner, view, data.settings),
-      splitAmount,
+      applyOwnerChartSplit(loan.paymentCents, loan.owner, view, data.settings),
       loan.owner === "shared" ? OWNER_COLORS.shared : OWNER_COLORS[loan.owner],
     );
 
@@ -571,31 +680,35 @@ export function computeDashboardMetrics(
   }, 0);
 
   const recurringCents = expenseCents + loanCents;
+  const salaryWindowEnd = nextSalaryWindowEnd(zonedToday);
   const remainingExpenses = activeExpenses.reduce(
     (sum, expense) =>
       sum +
-      applySplit(
-        remainingExpenseThisMonth(expense, zonedToday),
+      applyDashboardSplit(
+        remainingExpenseUntil(expense, salaryWindowEnd, zonedToday),
         expense.owner,
         view,
         data.settings,
+        commonScope,
       ),
     0,
   );
   const remainingLoans = activeLoans.reduce((sum, loan) => {
-    const dueThisMonth = zonedToday.getDate() <= loan.paymentDayOfMonth;
     return (
       sum +
-      (dueThisMonth
-        ? applySplit(loan.paymentCents, loan.owner, view, data.settings)
-        : 0)
+      applyDashboardSplit(
+        remainingLoanUntil(loan, salaryWindowEnd, zonedToday),
+        loan.owner,
+        view,
+        data.settings,
+        commonScope,
+      )
     );
   }, 0);
   const sharedAccountTotal = sharedMonthlyOutflowCents(data, zonedToday);
-  const sharedAccountTopUpCents =
-    view === "common"
-      ? sharedAccountTotal
-      : Math.round(sharedAccountTotal * splitFactor("shared", view, data.settings));
+  const sharedAccountTopUpCents = Math.round(
+    sharedAccountTotal * sharedAccountTopUpFactor(view, data.settings),
+  );
 
   const upcomingPayments: UpcomingPayment[] = [
     ...activeExpenses.map((expense) => buildUpcomingExpense(expense, data, zonedToday)),
@@ -603,7 +716,13 @@ export function computeDashboardMetrics(
   ]
     .map((payment) => ({
       ...payment,
-      amountCents: applySplit(payment.amountCents, payment.owner, view, data.settings),
+      amountCents: applyDashboardSplit(
+        payment.amountCents,
+        payment.owner,
+        view,
+        data.settings,
+        commonScope,
+      ),
     }))
     .filter((payment) => payment.amountCents > 0)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
@@ -621,7 +740,16 @@ export function computeDashboardMetrics(
     ownerTotals: [...ownerMap.values()],
     upcomingPayments,
     loanProgress: activeLoans
-      .filter((loan) => applySplit(loan.paymentCents, loan.owner, view, data.settings) > 0)
+      .filter(
+        (loan) =>
+          applyDashboardSplit(
+            loan.paymentCents,
+            loan.owner,
+            view,
+            data.settings,
+            commonScope,
+          ) > 0,
+      )
       .map((loan) => {
         const paid = paidInstallments(loan, zonedToday);
         return {
@@ -632,11 +760,12 @@ export function computeDashboardMetrics(
           progressPercent: Math.round((paid / loan.totalInstallments) * 100),
           remainingInstallments: loan.totalInstallments - paid,
           estimatedEndDate: estimatedLoanEndDate(loan),
-          monthlyAmountCents: applySplit(
+          monthlyAmountCents: applyDashboardSplit(
             loan.paymentCents,
             loan.owner,
             view,
             data.settings,
+            commonScope,
           ),
         };
     }),
