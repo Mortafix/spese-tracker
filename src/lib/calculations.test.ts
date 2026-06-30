@@ -344,21 +344,40 @@ describe("loan calculations", () => {
 });
 
 describe("dashboard metrics", () => {
-  it("uses only personal totals in personal views", () => {
+  it("uses personal plus common shares in personal summary cards", () => {
     const metrics = computeDashboardMetrics(data, "mine", baseDate);
 
-    expect(metrics.incomeCents).toBe(200000);
-    expect(metrics.expenseCents).toBe(20000);
-    expect(metrics.loanCents).toBe(0);
-    expect(metrics.availableCents).toBe(180000);
+    expect(metrics.incomeCents).toBe(260000);
+    expect(metrics.expenseCents).toBe(80000);
+    expect(metrics.loanCents).toBe(12000);
+    expect(metrics.availableCents).toBe(168000);
+    expect(metrics.categoryTotals).toEqual([{ name: "Casa", value: 20000, color: "#2563eb" }]);
     expect(metrics.upcomingPayments.map((item) => item.id)).not.toContain(monthlyExpense.id);
   });
 
-  it("uses only shared totals in common view", () => {
-    const metrics = computeDashboardMetrics(data, "common", baseDate);
+  it("uses household totals in common summary cards while keeping common details filtered", () => {
+    const partnerIncome = {
+      id: "income-partner",
+      name: "Stipendio partner",
+      owner: "partner" as const,
+      monthlyAmountCents: 180000,
+      active: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const metrics = computeDashboardMetrics(
+      { ...data, incomes: [...data.incomes, partnerIncome] },
+      "common",
+      baseDate,
+    );
 
-    expect(metrics.incomeCents).toBe(100000);
-    expect(metrics.recurringCents).toBe(120000);
+    expect(metrics.incomeCents).toBe(480000);
+    expect(metrics.recurringCents).toBe(140000);
+    expect(metrics.availableCents).toBe(340000);
+    expect(metrics.categoryTotals).toEqual([
+      { name: "Casa", value: 100000, color: "#2563eb" },
+      { name: "Mutui e finanziamenti", value: 20000, color: "#f59e0b" },
+    ]);
     expect(metrics.upcomingPayments.map((item) => item.id)).not.toContain(weeklyExpense.id);
   });
 
@@ -383,7 +402,7 @@ describe("dashboard metrics", () => {
       baseDate,
     );
 
-    expect(metrics.remainingThisMonthCents).toBe(120000);
+    expect(metrics.remainingThisMonthCents).toBe(135000);
   });
 
   it("calculates the shared account top-up from shared outflows", () => {
@@ -405,17 +424,17 @@ describe("dashboard metrics", () => {
     const partnerMetrics = computeDashboardMetrics(dataWithPartnerExpense, "partner", baseDate);
     const commonMetrics = computeDashboardMetrics(dataWithPartnerExpense, "common", baseDate);
 
-    expect(mineMetrics.expenseCents).toBe(20000);
+    expect(mineMetrics.expenseCents).toBe(80000);
     expect(mineMetrics.ownerTotals).toEqual([
       { name: "Quota comune", value: 72000, color: "#2dd4bf" },
       { name: "Io", value: 20000, color: "#38bdf8" },
     ]);
-    expect(partnerMetrics.expenseCents).toBe(70000);
+    expect(partnerMetrics.expenseCents).toBe(110000);
     expect(partnerMetrics.ownerTotals).toEqual([
       { name: "Quota comune", value: 48000, color: "#2dd4bf" },
       { name: "Lei", value: 70000, color: "#f472b6" },
     ]);
-    expect(commonMetrics.recurringCents).toBe(120000);
+    expect(commonMetrics.recurringCents).toBe(210000);
     expect(commonMetrics.ownerTotals).toEqual([
       { name: "Comune", value: 120000, color: "#2dd4bf" },
       { name: "Io", value: 20000, color: "#38bdf8" },

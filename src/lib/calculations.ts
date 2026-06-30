@@ -225,6 +225,41 @@ function applyDashboardSplit(
   return Math.round(cents * dashboardSplitFactor(owner, view, settings, commonScope));
 }
 
+function dashboardCardSplitFactor(
+  owner: Owner,
+  view: ViewMode,
+  settings: AppSettings,
+  commonScope: CommonDashboardScope,
+) {
+  if (view === "common" && commonScope === "allOwners") {
+    return 1;
+  }
+
+  if (view === "common") {
+    return 1;
+  }
+
+  if (owner === view) {
+    return 1;
+  }
+
+  if (owner === "shared") {
+    return sharedAccountTopUpFactor(view, settings);
+  }
+
+  return 0;
+}
+
+function applyDashboardCardSplit(
+  cents: number,
+  owner: Owner,
+  view: ViewMode,
+  settings: AppSettings,
+  commonScope: CommonDashboardScope,
+) {
+  return Math.round(cents * dashboardCardSplitFactor(owner, view, settings, commonScope));
+}
+
 function sharedAccountTopUpFactor(view: ViewMode, settings: AppSettings) {
   if (view === "mine") {
     return settings.sharedRatio.mine / 100;
@@ -622,7 +657,7 @@ export function computeDashboardMetrics(
   const incomeCents = activeIncomes.reduce(
     (sum, income) =>
       sum +
-      applyDashboardSplit(
+      applyDashboardCardSplit(
         income.monthlyAmountCents,
         income.owner,
         view,
@@ -635,7 +670,14 @@ export function computeDashboardMetrics(
   const expenseCents = activeExpenses.reduce((sum, expense) => {
     const category = data.categories.find((item) => item.id === expense.categoryId);
     const monthlyImpact = expenseMonthlyImpact(expense);
-    const splitAmount = applyDashboardSplit(
+    const viewAmount = applyDashboardSplit(
+      monthlyImpact,
+      expense.owner,
+      view,
+      data.settings,
+      commonScope,
+    );
+    const cardAmount = applyDashboardCardSplit(
       monthlyImpact,
       expense.owner,
       view,
@@ -646,7 +688,7 @@ export function computeDashboardMetrics(
     pushChartValue(
       categoryMap,
       category?.name || "Senza categoria",
-      splitAmount,
+      viewAmount,
       category?.color || "#64748b",
     );
     pushChartValue(
@@ -656,11 +698,18 @@ export function computeDashboardMetrics(
       expense.owner === "shared" ? OWNER_COLORS.shared : OWNER_COLORS[expense.owner],
     );
 
-    return sum + splitAmount;
+    return sum + cardAmount;
   }, 0);
 
   const loanCents = activeLoans.reduce((sum, loan) => {
-    const splitAmount = applyDashboardSplit(
+    const viewAmount = applyDashboardSplit(
+      loan.paymentCents,
+      loan.owner,
+      view,
+      data.settings,
+      commonScope,
+    );
+    const cardAmount = applyDashboardCardSplit(
       loan.paymentCents,
       loan.owner,
       view,
@@ -668,7 +717,7 @@ export function computeDashboardMetrics(
       commonScope,
     );
 
-    pushChartValue(categoryMap, "Mutui e finanziamenti", splitAmount, "#f59e0b");
+    pushChartValue(categoryMap, "Mutui e finanziamenti", viewAmount, "#f59e0b");
     pushChartValue(
       ownerMap,
       ownerChartName(loan.owner, view, data.settings),
@@ -676,7 +725,7 @@ export function computeDashboardMetrics(
       loan.owner === "shared" ? OWNER_COLORS.shared : OWNER_COLORS[loan.owner],
     );
 
-    return sum + splitAmount;
+    return sum + cardAmount;
   }, 0);
 
   const recurringCents = expenseCents + loanCents;
@@ -684,7 +733,7 @@ export function computeDashboardMetrics(
   const remainingExpenses = activeExpenses.reduce(
     (sum, expense) =>
       sum +
-      applyDashboardSplit(
+      applyDashboardCardSplit(
         remainingExpenseUntil(expense, salaryWindowEnd, zonedToday),
         expense.owner,
         view,
@@ -696,7 +745,7 @@ export function computeDashboardMetrics(
   const remainingLoans = activeLoans.reduce((sum, loan) => {
     return (
       sum +
-      applyDashboardSplit(
+      applyDashboardCardSplit(
         remainingLoanUntil(loan, salaryWindowEnd, zonedToday),
         loan.owner,
         view,
