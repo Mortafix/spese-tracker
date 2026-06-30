@@ -402,7 +402,7 @@ describe("dashboard metrics", () => {
       baseDate,
     );
 
-    expect(metrics.remainingThisMonthCents).toBe(135000);
+    expect(metrics.remainingThisMonthCents).toBe(120000);
   });
 
   it("calculates the shared account top-up from shared outflows", () => {

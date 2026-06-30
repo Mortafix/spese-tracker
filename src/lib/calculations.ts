@@ -733,7 +733,7 @@ export function computeDashboardMetrics(
   const remainingExpenses = activeExpenses.reduce(
     (sum, expense) =>
       sum +
-      applyDashboardCardSplit(
+      applyDashboardSplit(
         remainingExpenseUntil(expense, salaryWindowEnd, zonedToday),
         expense.owner,
         view,
@@ -745,7 +745,7 @@ export function computeDashboardMetrics(
   const remainingLoans = activeLoans.reduce((sum, loan) => {
     return (
       sum +
-      applyDashboardCardSplit(
+      applyDashboardSplit(
         remainingLoanUntil(loan, salaryWindowEnd, zonedToday),
         loan.owner,
         view,
