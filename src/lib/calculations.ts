@@ -441,7 +441,8 @@ export function remainingExpenseThisMonth(expense: Expense, today = new Date()) 
 }
 
 function nextSalaryWindowEnd(today: Date) {
-  return makeDate(today.getFullYear(), today.getMonth() + 1, 10);
+  const targetMonth = today.getDate() <= 10 ? today.getMonth() : today.getMonth() + 1;
+  return makeDate(today.getFullYear(), targetMonth, 10);
 }
 
 export function remainingExpenseUntil(

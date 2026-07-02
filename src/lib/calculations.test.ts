@@ -405,6 +405,36 @@ describe("dashboard metrics", () => {
     expect(metrics.remainingThisMonthCents).toBe(120000);
   });
 
+  it("calculates remaining payments only until the current 10th before payday", () => {
+    const todayBeforePayday = new Date("2026-07-02T12:00:00");
+    const earlySharedExpense = makeExpense("monthly", 30000, "2026-07-05", {
+      id: "early-shared-expense",
+      owner: "shared",
+    });
+    const lateSharedExpense = makeExpense("monthly", 40000, "2026-07-15", {
+      id: "late-shared-expense",
+      owner: "shared",
+    });
+    const earlyMineExpense = makeExpense("monthly", 20000, "2026-07-05", {
+      id: "early-mine-expense",
+      owner: "mine",
+    });
+    const periodData = {
+      ...data,
+      expenses: [earlySharedExpense, lateSharedExpense, earlyMineExpense],
+      loans: [],
+    };
+
+    expect(
+      computeDashboardMetrics(periodData, "common", todayBeforePayday)
+        .remainingThisMonthCents,
+    ).toBe(30000);
+    expect(
+      computeDashboardMetrics(periodData, "mine", todayBeforePayday)
+        .remainingThisMonthCents,
+    ).toBe(20000);
+  });
+
   it("calculates the shared account top-up from shared outflows", () => {
     expect(computeDashboardMetrics(data, "mine", baseDate).sharedAccountTopUpCents).toBe(72000);
     expect(computeDashboardMetrics(data, "common", baseDate).sharedAccountTopUpCents).toBe(120000);
