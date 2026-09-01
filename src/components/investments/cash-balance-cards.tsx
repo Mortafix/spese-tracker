@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 import { upsertCashBalanceAction } from "@/app/actions/mutations";
 import { OwnerChip } from "@/components/entity-ui";
 import { Field, MoneyInput } from "@/components/forms";
+import { PrivateValue, usePrivacyMode } from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/dates";
@@ -29,6 +30,15 @@ export function CashBalanceCards({
   today: string;
 }) {
   const [openOwner, setOpenOwner] = useState<Owner | null>(null);
+  const { enabled: privacyEnabled } = usePrivacyMode();
+  const [previousPrivacyEnabled, setPreviousPrivacyEnabled] = useState(privacyEnabled);
+
+  if (privacyEnabled !== previousPrivacyEnabled) {
+    setPreviousPrivacyEnabled(privacyEnabled);
+    if (privacyEnabled && openOwner !== null) {
+      setOpenOwner(null);
+    }
+  }
 
   return (
     <div className="grid items-start gap-3 lg:grid-cols-3">
@@ -43,12 +53,14 @@ export function CashBalanceCards({
             <button
               type="button"
               aria-expanded={isOpen}
+              aria-disabled={privacyEnabled}
+              disabled={privacyEnabled}
               onClick={() => {
                 setOpenOwner((current) => (
                   current === cashBalance.owner ? null : cashBalance.owner
                 ));
               }}
-              className="flex w-full cursor-pointer flex-col gap-3 p-4 text-left"
+              className="flex w-full cursor-pointer flex-col gap-3 p-4 text-left disabled:cursor-not-allowed disabled:opacity-70"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -56,7 +68,9 @@ export function CashBalanceCards({
                     {ownerCashLabel(cashBalance.owner, settings)}
                   </p>
                   <p className="mt-2 text-2xl font-semibold tracking-normal text-slate-50">
-                    {formatCurrency(cashBalance.balanceCents, currency)}
+                    <PrivateValue>
+                      {formatCurrency(cashBalance.balanceCents, currency)}
+                    </PrivateValue>
                   </p>
                 </div>
                 <OwnerChip owner={cashBalance.owner} settings={settings} variant="colored" />

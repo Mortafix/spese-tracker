@@ -33,3 +33,8 @@ textarea {
   background: rgba(45, 212, 191, 0.35);
   color: #f8fafc;
 }
+
+details[data-privacy-locked="true"] > summary {
+  cursor: not-allowed;
+  opacity: 0.72;
+}

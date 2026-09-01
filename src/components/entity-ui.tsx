@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPerson, faPersonDress, faUserGroup } from "@fortawesome/free-solid-svg-icons";
 import { Badge } from "@/components/ui/badge";
+import { PrivacyDetails } from "@/components/privacy-mode";
 import { categoryIconFor } from "@/lib/category-icons";
 import { ownerLabel, recurrenceLabel } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
@@ -99,7 +100,7 @@ export function EntityCard({
   active?: boolean;
 }) {
   return (
-    <details
+    <PrivacyDetails
       data-active={active ? "true" : "false"}
       className={cn(
         "rounded-lg border border-l-4 bg-white/[0.035] transition-colors",

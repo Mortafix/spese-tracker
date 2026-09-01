@@ -1,3 +1,4 @@
+import { cloneElement, useId, type ReactElement } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,13 +17,16 @@ export function Field({
   className,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactElement<{ id?: string }>;
   className?: string;
 }) {
+  const generatedId = useId();
+  const controlId = children.props.id || generatedId;
+
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label>{label}</Label>
-      {children}
+      <Label htmlFor={controlId}>{label}</Label>
+      {cloneElement(children, { id: controlId })}
     </div>
   );
 }
@@ -30,12 +34,14 @@ export function Field({
 export function OwnerSelect({
   settings,
   defaultValue = "shared",
+  id,
 }: {
   settings: AppSettings;
   defaultValue?: Owner;
+  id?: string;
 }) {
   return (
-    <Select name="owner" defaultValue={defaultValue}>
+    <Select id={id} name="owner" defaultValue={defaultValue}>
       <option value="mine">{settings.profileNames.mine}</option>
       <option value="partner">{settings.profileNames.partner}</option>
       <option value="shared">Entrambi</option>
@@ -43,9 +49,15 @@ export function OwnerSelect({
   );
 }
 
-export function RecurrenceSelect({ defaultValue = "monthly" }: { defaultValue?: Recurrence }) {
+export function RecurrenceSelect({
+  defaultValue = "monthly",
+  id,
+}: {
+  defaultValue?: Recurrence;
+  id?: string;
+}) {
   return (
-    <Select name="recurrence" defaultValue={defaultValue}>
+    <Select id={id} name="recurrence" defaultValue={defaultValue}>
       {recurrenceOptions.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
@@ -55,9 +67,9 @@ export function RecurrenceSelect({ defaultValue = "monthly" }: { defaultValue?: 
   );
 }
 
-export function WeekdaySelect({ defaultValue = 1 }: { defaultValue?: number }) {
+export function WeekdaySelect({ defaultValue = 1, id }: { defaultValue?: number; id?: string }) {
   return (
-    <Select name="weekday" defaultValue={String(defaultValue)}>
+    <Select id={id} name="weekday" defaultValue={String(defaultValue)}>
       <option value="1">Lunedi</option>
       <option value="2">Martedi</option>
       <option value="3">Mercoledi</option>
@@ -69,10 +81,20 @@ export function WeekdaySelect({ defaultValue = 1 }: { defaultValue?: number }) {
   );
 }
 
-export function ActiveField({ defaultChecked = true }: { defaultChecked?: boolean }) {
+export function ActiveField({
+  defaultChecked = true,
+  id,
+}: {
+  defaultChecked?: boolean;
+  id?: string;
+}) {
   return (
-    <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-300">
+    <label
+      htmlFor={id}
+      className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-300"
+    >
       <input
+        id={id}
         type="checkbox"
         name="active"
         defaultChecked={defaultChecked}
@@ -125,12 +147,15 @@ export function RecurrenceBadge({ recurrence }: { recurrence: Recurrence }) {
 export function MoneyInput({
   name,
   defaultValue,
+  id,
 }: {
   name: string;
   defaultValue?: string;
+  id?: string;
 }) {
   return (
     <Input
+      id={id}
       name={name}
       type="number"
       min="0"
@@ -145,12 +170,15 @@ export function MoneyInput({
 export function SignedMoneyInput({
   name,
   defaultValue,
+  id,
 }: {
   name: string;
   defaultValue?: string;
+  id?: string;
 }) {
   return (
     <Input
+      id={id}
       name={name}
       type="number"
       step="0.01"

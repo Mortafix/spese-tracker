@@ -8,6 +8,11 @@ import {
 import { CategoryIconInput } from "@/components/category-icon-picker";
 import { ActionBar, CategoryChip, SectionTitle } from "@/components/entity-ui";
 import { Field, FormGrid } from "@/components/forms";
+import {
+  PrivacyDetails,
+  PrivateNumberInput,
+  PrivateValue,
+} from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,7 +50,7 @@ export default async function SettingsPage() {
                 <Input name="partnerName" defaultValue={settings.profileNames.partner} required />
               </Field>
               <Field label={`Quota ${settings.profileNames.mine}`}>
-                <Input
+                <PrivateNumberInput
                   name="mineRatio"
                   type="number"
                   min="0"
@@ -59,7 +64,8 @@ export default async function SettingsPage() {
               </Field>
             </FormGrid>
             <p className="text-sm text-slate-400">
-              Quota {settings.profileNames.partner}: {settings.sharedRatio.partner}%.
+              Quota {settings.profileNames.partner}:{" "}
+              <PrivateValue>{settings.sharedRatio.partner}%</PrivateValue>.
             </p>
             <Button type="submit" variant="secondary">
               Salva impostazioni
@@ -75,7 +81,7 @@ export default async function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+          <PrivacyDetails className="rounded-lg border border-white/10 bg-white/[0.03]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="font-semibold text-slate-50">Nuova categoria</p>
@@ -105,14 +111,14 @@ export default async function SettingsPage() {
                 </Button>
               </form>
             </div>
-          </details>
+          </PrivacyDetails>
 
           <div className="space-y-3">
             {data.categories.map((category) => {
               const updateFormId = `category-update-${category.id}`;
 
               return (
-                <details
+                <PrivacyDetails
                   key={category.id}
                   className="rounded-lg border border-white/10 bg-white/[0.03] p-3"
                 >
@@ -159,7 +165,7 @@ export default async function SettingsPage() {
                       </ActionBar>
                     </div>
                   </div>
-                </details>
+                </PrivacyDetails>
               );
             })}
           </div>

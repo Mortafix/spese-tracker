@@ -5,13 +5,16 @@ import { normalizeCategoryIcon } from "@/lib/category-icons";
 export function CategoryIconInput({
   defaultValue,
   name = "icon",
+  id,
 }: {
   defaultValue?: string;
   name?: string;
+  id?: string;
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
       <Input
+        id={id}
         name={name}
         defaultValue={normalizeCategoryIcon(defaultValue)}
         placeholder="Es. house, fa-house, faHouse"

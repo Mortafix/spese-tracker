@@ -18,6 +18,7 @@ import {
   MoneyInput,
   OwnerSelect,
 } from "@/components/forms";
+import { PrivacyDetails, PrivateValue } from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,7 +39,7 @@ export default async function IncomesPage() {
         </h1>
       </header>
 
-      <details className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
+      <PrivacyDetails className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Nuova entrata</h2>
@@ -73,7 +74,7 @@ export default async function IncomesPage() {
             </Button>
           </form>
         </div>
-      </details>
+      </PrivacyDetails>
 
       <Card>
         <CardHeader>
@@ -100,7 +101,9 @@ export default async function IncomesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-base font-semibold text-slate-50 sm:text-lg">
-                        {formatCurrency(income.monthlyAmountCents, currency)}
+                        <PrivateValue>
+                          {formatCurrency(income.monthlyAmountCents, currency)}
+                        </PrivateValue>
                         <span className="ml-1 text-xs font-medium text-slate-400">/ mese</span>
                       </p>
                       {!income.active ? (

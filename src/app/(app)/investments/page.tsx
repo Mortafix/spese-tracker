@@ -7,6 +7,7 @@ import {
   TrendingUp,
   WalletCards,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   createInvestmentAction,
   deleteInvestmentAction,
@@ -32,6 +33,7 @@ import {
 import { CashBalanceCards } from "@/components/investments/cash-balance-cards";
 import { InvestmentCharts } from "@/components/investments/investment-charts";
 import { InvestmentTrackingForm } from "@/components/investments/tracking-form";
+import { PrivacyDetails, PrivateValue } from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -121,8 +123,8 @@ function MetricCard({
   tone,
 }: {
   label: string;
-  value: string;
-  detail?: string;
+  value: ReactNode;
+  detail?: ReactNode;
   tone?: string;
 }) {
   return (
@@ -162,28 +164,45 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
       <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-5">
         <MetricCard
           label="Patrimonio totale"
-          value={formatCurrency(metrics.totalValueCents, currency)}
+          value={
+            <PrivateValue>{formatCurrency(metrics.totalValueCents, currency)}</PrivateValue>
+          }
           detail="Investimenti + contanti"
         />
         <MetricCard
           label="Contanti"
-          value={formatCurrency(metrics.cashCents, currency)}
+          value={<PrivateValue>{formatCurrency(metrics.cashCents, currency)}</PrivateValue>}
           detail="Saldo manuale corrente"
         />
         <MetricCard
           label="Valore investimenti"
-          value={formatCurrency(metrics.investmentValueCents, currency)}
+          value={
+            <PrivateValue>
+              {formatCurrency(metrics.investmentValueCents, currency)}
+            </PrivateValue>
+          }
           detail={`${metrics.positions.length} attivi nella vista`}
         />
         <MetricCard
           label="Gain/loss"
-          value={formatSignedCurrency(metrics.gainLossCents, currency)}
-          detail={`Capitale netto ${formatCurrency(metrics.netContributedCents, currency)}`}
+          value={
+            <PrivateValue>
+              {formatSignedCurrency(metrics.gainLossCents, currency)}
+            </PrivateValue>
+          }
+          detail={
+            <>
+              Capitale netto{" "}
+              <PrivateValue>
+                {formatCurrency(metrics.netContributedCents, currency)}
+              </PrivateValue>
+            </>
+          }
           tone={valueTone(metrics.gainLossCents)}
         />
         <MetricCard
           label="Rendimento"
-          value={formatPercent(metrics.returnPercent)}
+          value={<PrivateValue>{formatPercent(metrics.returnPercent)}</PrivateValue>}
           detail="Su capitale netto investito"
           tone={valueTone(metrics.gainLossCents)}
         />
@@ -247,11 +266,16 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                     </div>
                     <div className="text-right">
                       <p className="text-base font-semibold text-slate-50 sm:text-lg">
-                        {formatCurrency(stats.currentValue, currency)}
+                        <PrivateValue>
+                          {formatCurrency(stats.currentValue, currency)}
+                        </PrivateValue>
                       </p>
                       <p className={cn("mt-1 text-xs font-medium", valueTone(stats.gainLoss))}>
-                        {formatSignedCurrency(stats.gainLoss, currency)} ·{" "}
-                        {formatPercent(stats.returnPercent)}
+                        <PrivateValue>
+                          {formatSignedCurrency(stats.gainLoss, currency)}
+                        </PrivateValue>{" "}
+                        ·{" "}
+                        <PrivateValue>{formatPercent(stats.returnPercent)}</PrivateValue>
                       </p>
                       {!investment.active ? (
                         <p className="mt-1 text-xs font-medium text-slate-500">Disattivo</p>
@@ -260,7 +284,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                   </EntitySummaryRow>
 
                   <div className="space-y-4 border-t border-white/10 p-4">
-                    <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+                    <PrivacyDetails className="rounded-lg border border-white/10 bg-white/[0.03]">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                         <div>
                           <p className="font-semibold text-slate-50">Modifica investimento</p>
@@ -311,9 +335,9 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                           </form>
                         </ActionBar>
                       </div>
-                    </details>
+                    </PrivacyDetails>
 
-                    <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+                    <PrivacyDetails className="rounded-lg border border-white/10 bg-white/[0.03]">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                         <div>
                           <p className="font-semibold text-slate-50">Nuovo tracking</p>
@@ -328,7 +352,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                           defaultTrackedAt={today}
                         />
                       </div>
-                    </details>
+                    </PrivacyDetails>
 
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-base font-semibold text-slate-50">
@@ -344,7 +368,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                           const trackingFormId = `tracking-update-${tracking.id}`;
 
                           return (
-                            <details
+                            <PrivacyDetails
                               key={tracking.id}
                               className="rounded-lg border border-white/10 bg-white/[0.03]"
                             >
@@ -359,7 +383,9 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                                 </div>
                                 <div className="text-right">
                                   <p className="font-semibold text-slate-50">
-                                    {formatCurrency(tracking.currentValueCents, currency)}
+                                    <PrivateValue>
+                                      {formatCurrency(tracking.currentValueCents, currency)}
+                                    </PrivateValue>
                                   </p>
                                   <p
                                     className={cn(
@@ -367,7 +393,9 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                                       valueTone(tracking.movementCents),
                                     )}
                                   >
-                                    {formatSignedCurrency(tracking.movementCents, currency)}
+                                    <PrivateValue>
+                                      {formatSignedCurrency(tracking.movementCents, currency)}
+                                    </PrivateValue>
                                   </p>
                                 </div>
                               </summary>
@@ -419,7 +447,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
                                   </form>
                                 </ActionBar>
                               </div>
-                            </details>
+                            </PrivacyDetails>
                           );
                         })
                       )}
@@ -432,7 +460,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
         </CardContent>
       </Card>
 
-      <details className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
+      <PrivacyDetails className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Nuovo investimento</h2>
@@ -467,7 +495,7 @@ export default async function InvestmentsPage({ searchParams }: InvestmentsPageP
             </Button>
           </form>
         </div>
-      </details>
+      </PrivacyDetails>
     </div>
   );
 }

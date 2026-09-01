@@ -18,6 +18,7 @@ import {
   MoneyInput,
   OwnerSelect,
 } from "@/components/forms";
+import { PrivacyDetails, PrivateValue } from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ export default async function LoansPage() {
         </h1>
       </header>
 
-      <details className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
+      <PrivacyDetails className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Nuovo finanziamento</h2>
@@ -85,7 +86,7 @@ export default async function LoansPage() {
             </Button>
           </form>
         </div>
-      </details>
+      </PrivacyDetails>
 
       <Card>
         <CardHeader>
@@ -117,13 +118,15 @@ export default async function LoansPage() {
                       <div className="mt-3 flex max-w-xl items-center gap-3">
                         <Progress value={progress} className="flex-1" />
                         <span className="min-w-12 text-right text-sm font-semibold text-cyan-200">
-                          {progress}%
+                          <PrivateValue>{progress}%</PrivateValue>
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-base font-semibold text-slate-50 sm:text-lg">
-                        {formatCurrency(loan.paymentCents, currency)}
+                        <PrivateValue>
+                          {formatCurrency(loan.paymentCents, currency)}
+                        </PrivateValue>
                         <span className="ml-1 text-xs font-medium text-slate-400">/ mese</span>
                       </p>
                       {!loan.active ? (

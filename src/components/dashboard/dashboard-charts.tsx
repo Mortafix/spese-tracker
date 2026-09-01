@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/entity-ui";
+import { PrivateValue, usePrivacyMode } from "@/components/privacy-mode";
 import { formatCurrency } from "@/lib/money";
 import type { ChartDatum } from "@/types/domain";
 
@@ -37,7 +38,9 @@ function ChartTooltip({
       <p className="font-medium text-slate-50">
         {item.payload?.name || item.name}
       </p>
-      <p className="text-slate-300">{formatCurrency(item.value, currency)}</p>
+      <p className="text-slate-300">
+        <PrivateValue>{formatCurrency(item.value, currency)}</PrivateValue>
+      </p>
     </div>
   );
 }
@@ -108,6 +111,7 @@ export function DashboardCharts({
   currency: string;
 }) {
   const [barRef, barWidth] = useMeasuredWidth();
+  const { enabled: privacyEnabled } = usePrivacyMode();
   const [categoryMode, setCategoryMode] = useState<"bar" | "pie">("bar");
   const [pieRef, pieWidth] = useMeasuredWidth();
   const hasCategoryTotals = categoryTotals.length > 0;
@@ -186,7 +190,7 @@ export function DashboardCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => `${value / 100}`}
+                tickFormatter={(value) => privacyEnabled ? "••••" : `${value / 100}`}
                 width={46}
               />
               <Tooltip content={<ChartTooltip currency={currency} />} />

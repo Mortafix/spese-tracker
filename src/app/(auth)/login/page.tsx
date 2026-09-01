@@ -1,5 +1,4 @@
 import { WalletCards } from "lucide-react";
-import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,7 +35,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               {errorMessage}
             </div>
           ) : null}
-          <form action={loginAction} className="space-y-4">
+          <form action="/api/auth/login" method="post" className="space-y-4">
             <input type="hidden" name="next" value={next} />
             <div className="space-y-1.5">
               <Label htmlFor="username">Username</Label>

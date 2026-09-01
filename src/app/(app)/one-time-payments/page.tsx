@@ -13,6 +13,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   createOneTimePaymentAction,
   deleteOneTimePaymentAction,
@@ -27,6 +28,7 @@ import {
 } from "@/components/entity-ui";
 import { Field, FormGrid, MoneyInput } from "@/components/forms";
 import { ExtraPeriodControls } from "@/components/one-time-payments/extra-period-controls";
+import { PrivacyDetails, PrivateValue } from "@/components/privacy-mode";
 import { OneTimePaymentCharts } from "@/components/one-time-payments/one-time-payment-charts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,12 +88,14 @@ function formatSignedCurrency(cents: number, currency: string) {
 function CategorySelect({
   categories,
   defaultValue,
+  id,
 }: {
   categories: Awaited<ReturnType<typeof getAppData>>["categories"];
   defaultValue?: string;
+  id?: string;
 }) {
   return (
-    <Select name="categoryId" defaultValue={defaultValue} required>
+    <Select id={id} name="categoryId" defaultValue={defaultValue} required>
       {categories.map((category) => (
         <option key={category.id} value={category.id}>
           {category.name}
@@ -101,9 +105,15 @@ function CategorySelect({
   );
 }
 
-function DirectionSelect({ defaultValue = "expense" }: { defaultValue?: OneTimePaymentDirection }) {
+function DirectionSelect({
+  defaultValue = "expense",
+  id,
+}: {
+  defaultValue?: OneTimePaymentDirection;
+  id?: string;
+}) {
   return (
-    <Select name="direction" defaultValue={defaultValue}>
+    <Select id={id} name="direction" defaultValue={defaultValue}>
       {oneTimePaymentDirectionOptions.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
@@ -113,9 +123,15 @@ function DirectionSelect({ defaultValue = "expense" }: { defaultValue?: OneTimeP
   );
 }
 
-function TypeSelect({ defaultValue = "single" }: { defaultValue?: OneTimePaymentType }) {
+function TypeSelect({
+  defaultValue = "single",
+  id,
+}: {
+  defaultValue?: OneTimePaymentType;
+  id?: string;
+}) {
   return (
-    <Select name="type" defaultValue={defaultValue}>
+    <Select id={id} name="type" defaultValue={defaultValue}>
       {oneTimePaymentTypeOptions.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
@@ -125,10 +141,20 @@ function TypeSelect({ defaultValue = "single" }: { defaultValue?: OneTimePayment
   );
 }
 
-function CashField({ defaultChecked = false }: { defaultChecked?: boolean }) {
+function CashField({
+  defaultChecked = false,
+  id,
+}: {
+  defaultChecked?: boolean;
+  id?: string;
+}) {
   return (
-    <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-300">
+    <label
+      htmlFor={id}
+      className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-slate-300"
+    >
       <input
+        id={id}
         type="checkbox"
         name="isCash"
         defaultChecked={defaultChecked}
@@ -146,8 +172,8 @@ function MetricCard({
   tone,
 }: {
   label: string;
-  value: string;
-  detail?: string;
+  value: ReactNode;
+  detail?: ReactNode;
   tone?: string;
 }) {
   return (
@@ -237,25 +263,27 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Entrate"
-          value={formatCurrency(metrics.incomeCents, currency)}
+          value={<PrivateValue>{formatCurrency(metrics.incomeCents, currency)}</PrivateValue>}
           detail="Movimenti extra nel periodo"
           tone="text-emerald-200"
         />
         <MetricCard
           label="Uscite"
-          value={formatCurrency(metrics.expenseCents, currency)}
+          value={<PrivateValue>{formatCurrency(metrics.expenseCents, currency)}</PrivateValue>}
           detail="Pagamenti non ricorrenti"
           tone="text-rose-200"
         />
         <MetricCard
           label="Saldo periodo"
-          value={formatSignedCurrency(metrics.netCents, currency)}
+          value={
+            <PrivateValue>{formatSignedCurrency(metrics.netCents, currency)}</PrivateValue>
+          }
           detail={`${metrics.count} movimenti registrati`}
           tone={valueTone(metrics.netCents)}
         />
         <MetricCard
           label="Contanti"
-          value={formatCurrency(metrics.cashCents, currency)}
+          value={<PrivateValue>{formatCurrency(metrics.cashCents, currency)}</PrivateValue>}
           detail="Movimenti marcati contanti"
         />
       </section>
@@ -286,7 +314,7 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
         </CardContent>
       </Card>
 
-      <details className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
+      <PrivacyDetails className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">
@@ -332,7 +360,7 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
             </Button>
           </form>
         </div>
-      </details>
+      </PrivacyDetails>
 
       <Card>
         <CardHeader>
@@ -381,8 +409,10 @@ export default async function OneTimePaymentsPage({ searchParams }: OneTimePayme
                           payment.direction === "income" ? "text-emerald-200" : "text-rose-200",
                         )}
                       >
-                        {payment.direction === "income" ? "+" : "-"}
-                        {formatCurrency(payment.amountCents, currency)}
+                        <PrivateValue>
+                          {payment.direction === "income" ? "+" : "-"}
+                          {formatCurrency(payment.amountCents, currency)}
+                        </PrivateValue>
                       </p>
                       <p className="mt-1 text-sm font-medium text-slate-400">
                         {formatDate(payment.date)}

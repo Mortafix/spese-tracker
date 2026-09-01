@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PrivateValue } from "@/components/privacy-mode";
 import { formatCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { AppSettings, DashboardMetrics, ViewMode } from "@/types/domain";
@@ -125,12 +126,12 @@ export function DashboardSummary({
               <div className="min-w-0">
                 <p className="truncate text-sm text-slate-400">{label}</p>
                 <p className="mt-2 text-2xl font-semibold tracking-normal text-slate-50">
-                  {formatCurrency(value, currency)}
+                  <PrivateValue>{formatCurrency(value, currency)}</PrivateValue>
                 </p>
                 {comparison ? (
                   <p className="mt-1 text-xs text-slate-500">
-                    {percentage(value, total)} di{" "}
-                    {formatCurrency(total, currency)}
+                    <PrivateValue>{percentage(value, total)}</PrivateValue> di{" "}
+                    <PrivateValue>{formatCurrency(total, currency)}</PrivateValue>
                   </p>
                 ) : null}
               </div>

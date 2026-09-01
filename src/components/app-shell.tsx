@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faUserSecret } from "@fortawesome/free-solid-svg-icons";
 import {
   Banknote,
   BarChart3,
@@ -19,6 +21,10 @@ import {
 import { logoutAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { ProfileSwitcher } from "@/components/profile-switcher";
+import {
+  PrivacyModeProvider,
+  usePrivacyMode,
+} from "@/components/privacy-mode";
 import { cn } from "@/lib/utils";
 import type { AppSettings } from "@/types/domain";
 
@@ -37,6 +43,26 @@ const brandLogoSrc = "/brand/menu-icon.png";
 export function AppShell({
   settings,
   demoMode,
+  initialPrivacyMode,
+  children,
+}: {
+  settings: AppSettings;
+  demoMode: boolean;
+  initialPrivacyMode: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <PrivacyModeProvider initialEnabled={initialPrivacyMode}>
+      <AppShellContent settings={settings} demoMode={demoMode}>
+        {children}
+      </AppShellContent>
+    </PrivacyModeProvider>
+  );
+}
+
+function AppShellContent({
+  settings,
+  demoMode,
   children,
 }: {
   settings: AppSettings;
@@ -47,6 +73,7 @@ export function AppShell({
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "common";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { enabled: privacyEnabled, toggle: togglePrivacyMode } = usePrivacyMode();
 
   function hrefWithView(href: string) {
     return `${href}?view=${view}`;
@@ -54,10 +81,10 @@ export function AppShell({
 
   const sidebarContent = (
     <div className="flex h-full flex-col gap-5 p-4">
-      <div className="flex items-center justify-between gap-3 lg:block">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href={hrefWithView("/dashboard")}
-          className="flex min-w-0 flex-1 items-center gap-3"
+          className="flex min-w-0 items-center gap-3"
           onClick={() => setMobileOpen(false)}
         >
           <Image src={brandLogoSrc} alt="" width={40} height={40} className="h-10 w-10 shrink-0" />
@@ -66,6 +93,25 @@ export function AppShell({
             <p className="truncate text-sm text-slate-500">Ricorrenti di coppia</p>
           </div>
         </Link>
+        <Button
+          size="icon"
+          variant="ghost"
+          type="button"
+          aria-label={privacyEnabled ? "Disattiva modalità incognito" : "Attiva modalità incognito"}
+          aria-pressed={privacyEnabled}
+          title={privacyEnabled ? "Disattiva modalità incognito" : "Attiva modalità incognito"}
+          onClick={togglePrivacyMode}
+          className={cn(
+            "hidden shrink-0 lg:inline-flex",
+            privacyEnabled && "bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/20",
+          )}
+        >
+          <FontAwesomeIcon
+            icon={privacyEnabled ? faUserSecret : faEye}
+            className="h-4 w-4"
+            aria-hidden
+          />
+        </Button>
         <Button
           size="icon"
           variant="ghost"
@@ -118,7 +164,10 @@ export function AppShell({
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_28rem),#020617] text-slate-100">
+    <div
+      data-privacy-mode={privacyEnabled ? "true" : "false"}
+      className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_28rem),#020617] text-slate-100"
+    >
       <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/85 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href={hrefWithView("/dashboard")} className="flex min-w-0 flex-1 items-center gap-3">
@@ -128,15 +177,35 @@ export function AppShell({
               <p className="truncate text-xs text-slate-500">Ricorrenti di coppia</p>
             </div>
           </Link>
-          <Button
-            size="icon"
-            variant="secondary"
-            type="button"
-            title="Apri menu"
-            onClick={() => setMobileOpen(true)}
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="icon"
+              variant="ghost"
+              type="button"
+              aria-label={privacyEnabled ? "Disattiva modalità incognito" : "Attiva modalità incognito"}
+              aria-pressed={privacyEnabled}
+              title={privacyEnabled ? "Disattiva modalità incognito" : "Attiva modalità incognito"}
+              onClick={togglePrivacyMode}
+              className={cn(
+                privacyEnabled && "bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/20",
+              )}
+            >
+              <FontAwesomeIcon
+                icon={privacyEnabled ? faUserSecret : faEye}
+                className="h-4 w-4"
+                aria-hidden
+              />
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              type="button"
+              title="Apri menu"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 

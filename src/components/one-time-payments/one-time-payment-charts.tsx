@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDownUp, ChartLine, Shapes } from "lucide-react";
 import { SectionTitle } from "@/components/entity-ui";
+import { PrivateValue, usePrivacyMode } from "@/components/privacy-mode";
 import { formatCurrency } from "@/lib/money";
 import type { ChartDatum, OneTimePaymentMonthlyDatum } from "@/types/domain";
 
@@ -91,7 +92,9 @@ function ChartTooltip({
               <span className="truncate">{entry.name}</span>
             </span>
             <span className="font-medium text-slate-100">
-              {formatCurrency(entry.value || 0, currency)}
+              <PrivateValue>
+                {formatCurrency(entry.value || 0, currency)}
+              </PrivateValue>
             </span>
           </div>
         ))}
@@ -126,6 +129,7 @@ export function OneTimePaymentCharts({
   trendGranularity: "month" | "year";
   currency: string;
 }) {
+  const { enabled: privacyEnabled } = usePrivacyMode();
   const [directionRef, directionWidth] = useMeasuredWidth();
   const [categoryRef, categoryWidth] = useMeasuredWidth();
   const [trendRef, trendWidth] = useMeasuredWidth();
@@ -153,7 +157,9 @@ export function OneTimePaymentCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => `${Number(value) / 100}`}
+                tickFormatter={(value) =>
+                  privacyEnabled ? "••••" : `${Number(value) / 100}`
+                }
                 width={46}
               />
               <Tooltip content={<ChartTooltip currency={currency} />} />
@@ -241,7 +247,9 @@ export function OneTimePaymentCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => `${Number(value) / 100}`}
+                tickFormatter={(value) =>
+                  privacyEnabled ? "••••" : `${Number(value) / 100}`
+                }
                 width={46}
               />
               <Tooltip

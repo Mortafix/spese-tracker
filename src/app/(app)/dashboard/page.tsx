@@ -2,6 +2,7 @@ import { CalendarClock, Landmark } from "lucide-react";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { DashboardSummary } from "@/components/dashboard/dashboard-summary";
 import { CategoryChip, OwnerChip, SectionTitle } from "@/components/entity-ui";
+import { PrivateValue } from "@/components/privacy-mode";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { computeDashboardMetrics, parseViewMode } from "@/lib/calculations";
@@ -91,12 +92,16 @@ export default async function DashboardPage({
                   </div>
                   <div className="text-right">
                     <p className="text-base font-semibold text-slate-50 sm:text-lg">
-                      {formatCurrency(payment.amountCents, currency)}
+                      <PrivateValue>
+                        {formatCurrency(payment.amountCents, currency)}
+                      </PrivateValue>
                     </p>
                     {payment.originalAmountCents !== payment.amountCents ? (
                       <p className="mt-1 text-xs font-medium text-slate-500">
                         totale{" "}
-                        {formatCurrency(payment.originalAmountCents, currency)}
+                        <PrivateValue>
+                          {formatCurrency(payment.originalAmountCents, currency)}
+                        </PrivateValue>
                       </p>
                     ) : null}
                     <p className="mt-1 text-xs font-medium text-slate-400">
@@ -131,11 +136,13 @@ export default async function DashboardPage({
                       <p className="font-medium text-slate-50">{loan.name}</p>
                       <p className="text-sm text-slate-400">
                         {loan.paidInstallments}/{loan.totalInstallments} rate ·{" "}
-                        {loan.progressPercent}%
+                        <PrivateValue>{loan.progressPercent}%</PrivateValue>
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-slate-50">
-                      {formatCurrency(loan.monthlyAmountCents, currency)}
+                      <PrivateValue>
+                        {formatCurrency(loan.monthlyAmountCents, currency)}
+                      </PrivateValue>
                     </p>
                   </div>
                   <Progress value={loan.progressPercent} />

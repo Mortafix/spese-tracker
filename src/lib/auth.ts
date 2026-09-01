@@ -5,9 +5,18 @@ import { getConfiguredPasswordHash, getConfiguredUsername } from "@/lib/config";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
-  signSessionToken,
   verifySessionToken,
 } from "@/lib/session";
+
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: SESSION_MAX_AGE,
+    path: "/",
+  };
+}
 
 export async function isPasswordValid(password: string) {
   const hash = getConfiguredPasswordHash();
@@ -21,21 +30,6 @@ export async function isPasswordValid(password: string) {
   }
 
   return bcrypt.compare(password, hash);
-}
-
-export async function createSession(username: string) {
-  const token = await signSessionToken(username);
-  const cookieStore = await cookies();
-
-  cookieStore.set({
-    name: SESSION_COOKIE,
-    value: token,
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
 }
 
 export async function destroySession() {

@@ -2,13 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getConfiguredUsername, validateProductionConfig } from "@/lib/config";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function proxy(request: NextRequest) {
   validateProductionConfig();
 
   const { pathname } = request.nextUrl;
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isPublicPath = PUBLIC_PATHS.includes(pathname);
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
   const isAuthenticated = session?.username === getConfiguredUsername();

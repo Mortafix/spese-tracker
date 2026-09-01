@@ -15,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import { SectionTitle } from "@/components/entity-ui";
+import { PrivateValue, usePrivacyMode } from "@/components/privacy-mode";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/money";
 import type { ChartDatum, InvestmentTrendSeries } from "@/types/domain";
@@ -81,13 +82,17 @@ function ChartTooltip({
                 <span className="truncate">{entry.name}</span>
               </span>
               <span className="font-medium text-slate-100">
-                {formatCurrency(entry.value || 0, currency)}
+                <PrivateValue>
+                  {formatCurrency(entry.value || 0, currency)}
+                </PrivateValue>
               </span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-slate-300">{formatCurrency(item.value || 0, currency)}</p>
+        <p className="text-slate-300">
+          <PrivateValue>{formatCurrency(item.value || 0, currency)}</PrivateValue>
+        </p>
       )}
     </div>
   );
@@ -209,6 +214,7 @@ export function InvestmentCharts({
   trendCurrentYear: InvestmentTrendSeries[];
   currency: string;
 }) {
+  const { enabled: privacyEnabled } = usePrivacyMode();
   const [allocationRef, allocationWidth] = useMeasuredWidth();
   const [performanceRef, performanceWidth] = useMeasuredWidth();
   const [trendRef, trendWidth] = useMeasuredWidth();
@@ -294,7 +300,9 @@ export function InvestmentCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => `${Number(value) / 100}`}
+                tickFormatter={(value) =>
+                  privacyEnabled ? "••••" : `${Number(value) / 100}`
+                }
                 width={46}
               />
               <Tooltip content={<ChartTooltip currency={currency} />} />
@@ -339,7 +347,9 @@ export function InvestmentCharts({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: "#94a3b8" }}
-                tickFormatter={(value) => `${Number(value) / 100}`}
+                tickFormatter={(value) =>
+                  privacyEnabled ? "••••" : `${Number(value) / 100}`
+                }
                 width={46}
               />
               <Tooltip content={<ChartTooltip currency={currency} />} />

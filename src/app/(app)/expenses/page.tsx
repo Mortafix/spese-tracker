@@ -14,6 +14,7 @@ import {
   SectionTitle,
 } from "@/components/entity-ui";
 import { ExpenseListControls } from "@/components/expenses/expense-list-controls";
+import { PrivacyDetails, PrivateValue } from "@/components/privacy-mode";
 import {
   ActiveField,
   Field,
@@ -52,12 +53,14 @@ type ExpensesPageProps = {
 function CategorySelect({
   categories,
   defaultValue,
+  id,
 }: {
   categories: Awaited<ReturnType<typeof getAppData>>["categories"];
   defaultValue?: string;
+  id?: string;
 }) {
   return (
-    <Select name="categoryId" defaultValue={defaultValue} required>
+    <Select id={id} name="categoryId" defaultValue={defaultValue} required>
       {categories.map((category) => (
         <option key={category.id} value={category.id}>
           {category.name}
@@ -102,7 +105,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </h1>
       </header>
 
-      <details className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
+      <PrivacyDetails className="rounded-xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4">
           <div>
             <h2 className="text-base font-semibold text-slate-50">Nuova spesa</h2>
@@ -146,7 +149,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
             </Button>
           </form>
         </div>
-      </details>
+      </PrivacyDetails>
 
       <Card>
         <CardHeader>
@@ -166,7 +169,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
               </p>
             </div>
             <p className="text-2xl font-semibold tracking-normal text-slate-50">
-              {formatCurrency(monthlyTotalCents, currency)}
+              <PrivateValue>{formatCurrency(monthlyTotalCents, currency)}</PrivateValue>
             </p>
           </div>
           {visibleExpenses.length === 0 ? (
@@ -204,13 +207,18 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
                     </div>
                     <div className="text-right">
                       <p className="text-base font-semibold text-slate-50 sm:text-lg">
-                        {formatCurrency(expense.amountCents, currency)}
+                        <PrivateValue>
+                          {formatCurrency(expense.amountCents, currency)}
+                        </PrivateValue>
                         <span className="ml-1 text-xs font-medium text-slate-400">
                           / {recurrencePeriodLabel(expense.recurrence)}
                         </span>
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        {formatCurrency(expenseMonthlyImpact(expense), currency)} / mese
+                        <PrivateValue>
+                          {formatCurrency(expenseMonthlyImpact(expense), currency)}
+                        </PrivateValue>{" "}
+                        / mese
                       </p>
                       {!expense.active ? (
                         <p className="mt-1 text-xs font-medium text-slate-500">Disattiva</p>
